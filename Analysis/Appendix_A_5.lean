@@ -97,20 +97,62 @@ example : ¬ ∃ m:ℤ, ∀ n:ℤ, m > n := by
 /-- Exercise A.5.1 -/
 def Exercise_A_5_1a : Decidable (∀ x > (0:ℝ), ∀ y > (0:ℝ), y^2 = x ) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isFalse
+  simp
+  use 1
+  constructor
+  . norm_num
+  use 2
+  constructor
+  . norm_num
+  norm_num
 
 def Exercise_A_5_1b : Decidable (∃ x > (0:ℝ), ∀ y > (0:ℝ), y^2 = x ) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isFalse
+  simp
+  intro x hx
+  use √x+1
+  constructor
+  . positivity
+  ring_nf
+  intro h
+  have hx2 : √x ^ 2 = x
+  . apply Real.sq_sqrt
+    linarith
+  rw [hx2] at h
+  replace h := congr($h-x)
+  simp at h
+  have hx3 : 1 + √x * 2 > 0
+  . positivity
+  linarith
 
 def Exercise_A_5_1c : Decidable (∃ x > (0:ℝ), ∃ y > (0:ℝ), y^2 = x ) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isTrue
+  use 1
+  constructor
+  . norm_num
+  use 1
+  constructor
+  . norm_num
+  norm_num
 
 def Exercise_A_5_1d : Decidable (∀ y > (0:ℝ), ∃ x > (0:ℝ), y^2 = x ) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isTrue
+  intro y hy
+  use y^2
+  constructor
+  . positivity
+  rfl
 
 def Exercise_A_5_1e : Decidable (∃ y > (0:ℝ), ∀ x > (0:ℝ), y^2 = x ) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isFalse
+  simp
+  intro y hy
+  use y^2 + 1
+  constructor
+  . positivity
+  linarith
