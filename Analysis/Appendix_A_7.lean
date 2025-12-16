@@ -110,4 +110,9 @@ example {X:Type} {f:ℤ → X} (hf: f 12 = f 2) (n:ℤ) : NewInt.quot hf (n:NewI
 
 /-- Exercise A.7.1 -/
 example {a b c d:ℝ} (hab: a = b) (hcd : c = d) : a + d = b + c := by
-  sorry
+  have h : a + d = b + d
+  . exact congrArg (fun x ↦ x + d) hab
+  have h2 : b + d = b + c
+  . apply Eq.symm
+    exact congrArg (fun x ↦ b + x) hcd
+  exact Eq.trans h h2
