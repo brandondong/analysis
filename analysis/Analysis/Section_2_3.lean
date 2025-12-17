@@ -60,17 +60,32 @@ theorem Nat.two_mul (m: Nat) : 2 * m = 0 + m + m := by
 /-- This lemma will be useful to prove Lemma 2.3.2.
 Compare with Mathlib's `Nat.mul_zero` -/
 lemma Nat.mul_zero (n: Nat) : n * 0 = 0 := by
-  sorry
+  revert n; apply induction
+  . rfl
+  intro n hn
+  rw [succ_mul, hn, zero_add]
 
 /-- This lemma will be useful to prove Lemma 2.3.2.
 Compare with Mathlib's `Nat.mul_succ` -/
 lemma Nat.mul_succ (n m:Nat) : n * m++ = n * m + n := by
-  sorry
+  revert n; apply induction
+  . rw [zero_mul, zero_mul, zero_add]
+  intro n ih
+  rw [succ_mul, succ_mul, ih]
+  calc
+    n * m + n + m++ = n * m + (n + m++) := by rw [add_assoc]
+    _ = n * m + (m++ + n) := by rw [add_comm n (m++)]
+    _ = n * m + (m + n)++ := by rfl
+    _ = n * m + (m + n++) := by rw [← add_succ]
+    _ = n * m + m + n++ := by rw [add_assoc]
 
 /-- Lemma 2.3.2 (Multiplication is commutative) / Exercise 2.3.1
 Compare with Mathlib's `Nat.mul_comm` -/
 lemma Nat.mul_comm (n m: Nat) : n * m = m * n := by
-  sorry
+  revert n; apply induction
+  . rw [mul_zero, zero_mul]
+  intro n hn
+  rw [succ_mul, hn, mul_succ]
 
 /-- Compare with Mathlib's `Nat.mul_one` -/
 theorem Nat.mul_one (m: Nat) : m * 1 = m := by
@@ -79,12 +94,35 @@ theorem Nat.mul_one (m: Nat) : m * 1 = m := by
 /-- This lemma will be useful to prove Lemma 2.3.3.
 Compare with Mathlib's `Nat.mul_pos` -/
 lemma Nat.pos_mul_pos {n m: Nat} (h₁: n.IsPos) (h₂: m.IsPos) : (n * m).IsPos := by
-  sorry
+  revert n; apply induction -- Case split to get n++ case.
+  . -- n = 0 -> False
+    intro h
+    contradiction
+  intro n ih hn
+  clear ih
+  rw [mul_comm]
+  revert m; apply induction -- Case split to get m++ case.
+  . -- m = 0 -> False
+    intro h
+    contradiction
+  intro m ih hm
+  clear ih
+  rw [succ_mul]
+  apply add_pos_right
+  exact hn
 
 /-- Lemma 2.3.3 (Positive natural numbers have no zero divisors) / Exercise 2.3.2.
     Compare with Mathlib's `Nat.mul_eq_zero`.  -/
 lemma Nat.mul_eq_zero (n m: Nat) : n * m = 0 ↔ n = 0 ∨ m = 0 := by
-  sorry
+  constructor
+  . contrapose!
+    intro ⟨ hn, hm ⟩
+    rw [← isPos_iff] at *
+    exact pos_mul_pos hn hm
+  intro h
+  obtain h | h := h
+  . rw [h, zero_mul]
+  . rw [h, mul_zero]
 
 /-- Proposition 2.3.4 (Distributive law)
 Compare with Mathlib's `Nat.mul_add` -/
@@ -105,7 +143,10 @@ theorem Nat.add_mul (a b c: Nat) : (a + b)*c = a*c + b*c := by
 /-- Proposition 2.3.5 (Multiplication is associative) / Exercise 2.3.3
 Compare with Mathlib's `Nat.mul_assoc` -/
 theorem Nat.mul_assoc (a b c: Nat) : (a * b) * c = a * (b * c) := by
-  sorry
+  revert c; apply induction
+  . rw [mul_zero, mul_zero, mul_zero]
+  intro c ih
+  rw [mul_succ, ih, mul_succ, mul_add]
 
 /-- (Not from textbook)  Nat is a commutative semiring.
     This allows tactics such as `ring` to apply to the Chapter 2 natural numbers. -/
