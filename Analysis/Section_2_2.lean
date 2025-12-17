@@ -416,9 +416,22 @@ theorem Nat.trichotomous (a b:Nat) : a < b ∨ a = b ∨ a > b := by
   . rw [lt_iff_succ_le] at case1
     rw [le_iff_lt_or_eq] at case1
     tauto
-  . have why : a++ > b := by sorry
+  . have why : a++ > b
+    . rw [gt_iff_lt]
+      constructor
+      . use 1
+        rw [case2]
+        exact succ_eq_add_one b
+      rw [case2]
+      have h := succ_gt_self b
+      rw [gt_iff_lt] at h
+      exact h.2
     tauto
-  have why : a++ > b := by sorry
+  have why : a++ > b
+  . rw [gt_iff_lt] at *
+    have h1 : b ≤ a := case3.1
+    have h2 : a < a++ := succ_gt_self a
+    exact lt_of_le_of_lt h1 h2
   tauto
 
 /--
@@ -433,20 +446,32 @@ theorem Nat.trichotomous (a b:Nat) : a < b ∨ a = b ∨ a > b := by
 def Nat.decLe : (a b : Nat) → Decidable (a ≤ b)
   | 0, b => by
     apply isTrue
-    sorry
+    exact zero_le b
   | a++, b => by
     cases decLe a b with
     | isTrue h =>
       cases decEq a b with
       | isTrue h =>
         apply isFalse
-        sorry
-      | isFalse h =>
+        rw [h]
+        intro h2
+        rw [← lt_iff_succ_le] at h2
+        exact not_lt_self h2
+      | isFalse h2 =>
         apply isTrue
-        sorry
+        suffices h : a < b
+        . exact (lt_iff_succ_le a b).mp h
+        constructor
+        . exact h
+        exact h2
     | isFalse h =>
       apply isFalse
-      sorry
+      contrapose! h
+      have h2 : (a ≤ a++)
+      . have h := succ_gt_self a
+        rw [gt_iff_lt] at h
+        exact h.1
+      exact le_trans h2 h
 
 instance Nat.decidableRel : DecidableRel (· ≤ · : Nat → Nat → Prop) := Nat.decLe
 
