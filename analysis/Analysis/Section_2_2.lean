@@ -531,20 +531,113 @@ example (a b c d e:Nat) (hab: a ≤ b) (hbc: b < c) (hde: d < e) :
 theorem Nat.strong_induction {m₀:Nat} {P: Nat → Prop}
   (hind: ∀ m, m ≥ m₀ → (∀ m', m₀ ≤ m' ∧ m' < m → P m') → P m) :
     ∀ m, m ≥ m₀ → P m := by
-  sorry
+  suffices h : ∀ m, m ≥ m₀ → (∀ m', m₀ ≤ m' ∧ m' < m → P m')
+  . intro m hm
+    have hm2 : m++ ≥ m₀
+    . rw [ge_iff_le] at *
+      have h2 : (m ≤ m++)
+      . use 1
+        exact succ_eq_add_one m
+      exact le_trans hm h2
+    specialize h (m++) hm2 m
+    apply h
+    constructor
+    . exact hm
+    exact succ_gt_self m
+  apply induction
+  . intro hm0 m' ⟨ hm, hm2 ⟩
+    rw [lt_iff_add_pos] at hm2
+    obtain ⟨ d, ⟨ hd, hd2 ⟩ ⟩ := hm2
+    have temp := add_pos_left m' hd
+    rw [add_comm] at hd2
+    rw [← hd2] at temp
+    contradiction
+  intro n hn hn2 n' ⟨ hn', hn2' ⟩
+  have temp : n ≥ m₀
+  . rw [ge_iff_le]
+    replace hn := calc
+      m₀ ≤ n' := hn'
+      _ < n++ := hn2'
+    rw [lt_iff_succ_le] at hn
+    obtain ⟨ d, hd ⟩ := hn
+    use d
+    exact succ_cancel hd
+  have h := trichotomous n' n
+  obtain h | h | h := h
+  . specialize hn temp
+    apply hn
+    constructor
+    . exact hn'
+    exact h
+  . rw [h]
+    apply hind
+    . exact temp
+    apply hn
+    exact temp
+  exfalso
+  rw [gt_iff_lt, lt_iff_succ_le] at h
+  have contra := not_lt_of_gt n' (n++)
+  apply contra
+  constructor
+  . exact hn2'
+  rw [gt_iff_lt]
+  constructor
+  . exact h
+  exact hn2'.2.symm
 
 /-- Exercise 2.2.6 (backwards induction)
     Compare with Mathlib's `Nat.decreasingInduction`. -/
 theorem Nat.backwards_induction {n:Nat} {P: Nat → Prop}
   (hind: ∀ m, P (m++) → P m) (hn: P n) :
     ∀ m, m ≤ n → P m := by
-  sorry
+  revert n
+  apply induction
+  . intro hp0 m hm
+    suffices h: m = 0
+    . rwa [h]
+    obtain ⟨ d, hd ⟩ := hm
+    have temp := add_eq_zero m d hd.symm
+    exact temp.1
+  intro k hk hpk i hi
+  specialize hind k hpk
+  specialize hk hind
+  obtain h | h | h := trichotomous i (k++)
+  . rw [lt_iff_succ_le] at h
+    apply hk
+    obtain ⟨ d, hd ⟩ := h
+    use d
+    exact succ_cancel hd
+  . rwa [h]
+  rw [gt_iff_lt] at h
+  have temp := calc
+    k++ < i := h
+    _ ≤ k++ := hi
+  exfalso
+  exact not_lt_self temp
 
 /-- Exercise 2.2.7 (induction from a starting point)
     Compare with Mathlib's `Nat.le_induction`. -/
 theorem Nat.induction_from {n:Nat} {P: Nat → Prop} (hind: ∀ m, P m → P (m++)) :
     P n → ∀ m, m ≥ n → P m := by
-  sorry
+  intro hpn
+  apply induction
+  . intro hn
+    suffices h : n = 0
+    . rwa [h] at hpn
+    obtain ⟨ d, hd ⟩ := hn
+    have temp := add_eq_zero n d hd.symm
+    exact temp.1
+  intro a ih ha
+  rw [ge_iff_le, le_iff_eq_or_lt] at ha
+  obtain ha | ha := ha
+  . rwa [ha] at hpn
+  apply hind
+  apply ih
+  rw [ge_iff_le]
+  rw [lt_iff_succ_le] at ha
+  obtain ⟨ d, hd ⟩ := ha
+  use d
+  exact succ_cancel hd
 
 
 
