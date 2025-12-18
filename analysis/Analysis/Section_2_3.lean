@@ -208,9 +208,23 @@ lemma Nat.mul_cancel_right {a b c: Nat} (h: a * c = b * c) (hc: c.IsPos) : a = b
 /-- (Not from textbook) Nat is an ordered semiring.
 This allows tactics such as `gcongr` to apply to the Chapter 2 natural numbers. -/
 instance Nat.isOrderedRing : IsOrderedRing Nat where
-  zero_le_one := by sorry
-  mul_le_mul_of_nonneg_left := by sorry
-  mul_le_mul_of_nonneg_right := by sorry
+  zero_le_one := by exact zero_le 1
+  mul_le_mul_of_nonneg_left := by {
+    intro a b c hab hc
+    clear hc
+    obtain ⟨ d, hd ⟩ := hab
+    rw [hd]
+    use c*d
+    ring
+  }
+  mul_le_mul_of_nonneg_right := by {
+    intro a b c hab hc
+    clear hc
+    obtain ⟨ d, hd ⟩ := hab
+    rw [hd]
+    use c*d
+    ring
+  }
 
 /-- This illustration of the `gcongr` tactic is not from the
     textbook. -/
@@ -223,7 +237,32 @@ example (a b c d:Nat) (hab: a ≤ b) : c*a*d ≤ c*b*d := by
 Compare with Mathlib's `Nat.mod_eq_iff` -/
 theorem Nat.exists_div_mod (n:Nat) {q: Nat} (hq: q.IsPos) :
     ∃ m r: Nat, 0 ≤ r ∧ r < q ∧ n = m * q + r := by
-  sorry
+  revert n; apply induction
+  . use 0, 0
+    split_ands
+    . exact zero_le 0
+    . exact zero_le q
+    . exact hq.symm
+    ring
+  intro n ih
+  obtain ⟨ m, ⟨ r, ⟨ hr, hr2, hn ⟩ ⟩ ⟩ := ih
+  -- If r = q-1, we can use m+1, 0.
+  -- Otherwise use m, r+1.
+  rw [lt_iff_succ_le, le_iff_eq_or_lt] at hr2
+  obtain h | h := hr2
+  . use (m+1), 0
+    split_ands
+    . exact zero_le 0
+    . exact zero_le q
+    . exact hq.symm
+    rw [hn, add_zero, ← add_succ, h]
+    ring
+  . use m, (r++)
+    split_ands
+    . exact zero_le (r++)
+    . exact le_of_lt h
+    . exact Ne.symm (ne_of_gt q (r++) h)
+    rw [hn, add_succ]
 
 /-- Definition 2.3.11 (Exponentiation for natural numbers) -/
 abbrev Nat.pow (m n: Nat) : Nat := Nat.recurse (fun _ prod ↦ prod * m) 1 n
@@ -253,6 +292,11 @@ theorem Nat.pow_one (m: Nat) : m ^ (1:Nat) = m := by
 /-- Exercise 2.3.4-/
 theorem Nat.sq_add_eq (a b: Nat) :
     (a + b) ^ (2 : Nat) = a ^ (2 : Nat) + 2 * a * b + b ^ (2 : Nat) := by
-  sorry
+  -- Expand out the powers so we can use ring.
+  have temp : (a + b) ^ (2 : Nat) = (a + b) * (a + b) := by rfl
+  rw [temp]
+  replace temp : a ^ (2 : Nat) + (2 : Nat) * a * b + b ^ (2 : Nat) = a * a + 2 * a * b + b * b := by rfl
+  rw [temp]
+  ring
 
 end Chapter2
