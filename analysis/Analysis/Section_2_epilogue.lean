@@ -105,7 +105,11 @@ abbrev Chapter2.Nat.equivNat_ordered_ring : Chapter2.Nat ≃+*o ℕ where
 /-- The conversion preserves exponentiation. -/
 lemma Chapter2.Nat.pow_eq_pow (n m : Chapter2.Nat) :
     n.toNat ^ m.toNat = (n^m).toNat := by
-  sorry
+  induction' m with m hm
+  . rw [show zero = 0 from rfl, pow_zero, zero_toNat]
+    ring
+  rw [succ_toNat, pow_succ, map_mul, ← hm]
+  ring
 
 
 /-- The Peano axioms for an abstract type `Nat` -/
@@ -146,11 +150,42 @@ abbrev natCast (P : PeanoAxioms) : ℕ → P.Nat := fun n ↦ match n with
 
 /-- One can start the proof here with `unfold Function.Injective`, although it is not strictly necessary. -/
 theorem natCast_injective (P : PeanoAxioms) : Function.Injective P.natCast := by
-  sorry
+  unfold Function.Injective
+  intro a1
+  induction' a1 with a1 ih
+  . intro a h
+    match a with
+    | 0 => rfl
+    | n + 1 => {
+      unfold natCast at h
+      have := (P.succ_ne (P.natCast n)).symm
+      contradiction
+    }
+  intro a2 h
+  match a2 with
+  | 0 => {
+    unfold natCast at h
+    have := P.succ_ne (P.natCast a1)
+    contradiction
+  }
+  | a2 + 1 => {
+    apply P.succ_cancel at h
+    specialize ih h
+    rw [ih]
+  }
 
 /-- One can start the proof here with `unfold Function.Surjective`, although it is not strictly necessary. -/
 theorem natCast_surjective (P : PeanoAxioms) : Function.Surjective P.natCast := by
-  sorry
+  unfold Function.Surjective
+  intro b
+  -- (fun b ↦ ∃ a, P.natCast a = b)
+  have h : (∃ a, P.natCast a = P.zero)
+  . use 0
+  replace h := P.induction (fun b ↦ ∃ a, P.natCast a = b) h
+  simp at h
+  apply h
+  intro a
+  use a.succ
 
 /-- The notion of an equivalence between two structures obeying the Peano axioms.
     The symbol `≃` is an alias for Mathlib's `Equiv` class; for instance `P.Nat ≃ Q.Nat` is
