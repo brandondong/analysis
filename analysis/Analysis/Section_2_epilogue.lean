@@ -199,26 +199,65 @@ class Equiv (P Q : PeanoAxioms) where
     Some of this API can be invoked automatically via the `simp` tactic. -/
 abbrev Equiv.symm {P Q: PeanoAxioms} (equiv : Equiv P Q) : Equiv Q P where
   equiv := equiv.equiv.symm
-  equiv_zero := by sorry
-  equiv_succ n := by sorry
+  equiv_zero := by {
+    have h := equiv.equiv_zero
+    rw [Equiv.symm_apply_eq equiv.1]
+    exact h.symm
+  }
+  equiv_succ q := by {
+    have h := equiv.equiv_succ
+    rw [Equiv.symm_apply_eq equiv.1]
+    specialize h (Equiv.equiv.symm q)
+    rw [h]
+    simp
+  }
 
 /-- This exercise will require application of Mathlib's API for the `Equiv` class.
     Some of this API can be invoked automatically via the `simp` tactic. -/
 abbrev Equiv.trans {P Q R: PeanoAxioms} (equiv1 : Equiv P Q) (equiv2 : Equiv Q R) : Equiv P R where
   equiv := equiv1.equiv.trans equiv2.equiv
-  equiv_zero := by sorry
-  equiv_succ n := by sorry
+  equiv_zero := by {
+    simp
+    have hpq := equiv1.equiv_zero
+    have hqr := equiv2.equiv_zero
+    rw [hpq, hqr]
+  }
+  equiv_succ p := by {
+    simp
+    have hpq := equiv1.equiv_succ
+    have hqr := equiv2.equiv_succ
+    specialize hqr (equiv p)
+    rw [← hqr]; clear hqr
+    specialize hpq p
+    rw [hpq]
+  }
+
+#check Function.surjInv
+#check Function.invFun
 
 /-- Useful Mathlib tools for inverting bijections include `Function.surjInv` and `Function.invFun`. -/
 noncomputable abbrev Equiv.fromNat (P : PeanoAxioms) : Equiv Mathlib_Nat P where
   equiv := {
     toFun := P.natCast
-    invFun := by sorry
-    left_inv := by sorry
-    right_inv := by sorry
+    invFun := Function.surjInv (natCast_surjective P)
+    left_inv := by {
+      apply Function.leftInverse_surjInv
+      constructor
+      . exact natCast_injective P
+      . exact natCast_surjective P
+    }
+    right_inv := by {
+      apply Function.rightInverse_surjInv
+    }
   }
-  equiv_zero := by sorry
-  equiv_succ n := by sorry
+  equiv_zero := by {
+    simp
+    rfl
+  }
+  equiv_succ n := by {
+    simp
+    rfl
+  }
 
 /-- The task here is to establish that any two structures obeying the Peano axioms are equivalent. -/
 noncomputable abbrev Equiv.mk' (P Q : PeanoAxioms) : Equiv P Q := by sorry
