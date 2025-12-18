@@ -57,17 +57,44 @@ abbrev Chapter2.Nat.map_add : ∀ (n m : Nat), (n + m).toNat = n.toNat + m.toNat
   intro n m
   induction' n with n hn
   · rw [show zero = 0 from rfl, zero_add, _root_.Nat.zero_add]
-  sorry
+  rw [succ_add, succ_toNat, hn, succ_toNat]
+  ring
 
 /-- The conversion preserves multiplication. -/
 abbrev Chapter2.Nat.map_mul : ∀ (n m : Nat), (n * m).toNat = n.toNat * m.toNat := by
   intro n m
-  sorry
+  induction' n with n hn
+  . rw [show zero = 0 from rfl, zero_mul, _root_.Nat.zero_mul]
+  rw [succ_mul, map_add, hn, succ_toNat]
+  ring
 
 /-- The conversion preserves order. -/
 abbrev Chapter2.Nat.map_le_map_iff : ∀ {n m : Nat}, n.toNat ≤ m.toNat ↔ n ≤ m := by
   intro n m
-  sorry
+  constructor
+  . contrapose!
+    intro h
+    obtain ⟨ ⟨ d, hd ⟩, h2 ⟩ := h
+    -- Can't find Mathlib theorem to prove < with le and ne...
+    rw [Nat.lt_iff_add_one_le]
+    match d with
+    | 0 => {
+      rw [add_zero] at hd
+      rw [hd] at h2
+      contradiction
+    }
+    | succ d => {
+      rw [le_iff_exists_add]
+      use d.toNat
+      rw [hd, map_add, succ_toNat]
+      ring
+    }
+  . intro h
+    obtain ⟨ d, hd ⟩ := h
+    rw [le_iff_exists_add]
+    use d.toNat
+    rw [← map_add]
+    rw [hd]
 
 abbrev Chapter2.Nat.equivNat_ordered_ring : Chapter2.Nat ≃+*o ℕ where
   toEquiv := equivNat
