@@ -1063,11 +1063,36 @@ theorem SetTheory.Set.partition_right {A B X:Set} (h_union: A ∪ B = X) (h_inte
   You may find `Function.onFun_apply` and the `fin_cases` tactic useful.
 -/
 theorem SetTheory.Set.pairwise_disjoint (A B:Set) :
-    Pairwise (Function.onFun Disjoint ![A \ B, A ∩ B, B \ A]) := by sorry
+    Pairwise (Function.onFun Disjoint ![A \ B, A ∩ B, B \ A]) := by
+  unfold Pairwise
+  intro i j hij
+  unfold Function.onFun
+  rw [disjoint_iff]
+  ext x
+  simp
+  intro hx
+  fin_cases i, j
+  . simp at *
+  . simp at *
+    tauto
+  . simp at *
+    tauto
+  . simp at *
+    tauto
+  . simp at *
+  . simp at *
+    tauto
+  . simp at *
+    tauto
+  . simp at *
+    tauto
+  . simp at *
 
 /-- Exercise 3.1.10 -/
 theorem SetTheory.Set.union_eq_partition (A B:Set) : A ∪ B = (A \ B) ∪ (A ∩ B) ∪ (B \ A) := by
-  sorry
+  ext x
+  simp
+  tauto
 
 /--
   Exercise 3.1.11.
@@ -1079,15 +1104,29 @@ theorem SetTheory.Set.specification_from_replacement {A:Set} {P: A → Prop} :
 
 /-- Exercise 3.1.12.-/
 theorem SetTheory.Set.subset_union_subset {A B A' B':Set} (hA'A: A' ⊆ A) (hB'B: B' ⊆ B) :
-    A' ∪ B' ⊆ A ∪ B := by sorry
+    A' ∪ B' ⊆ A ∪ B := by
+  rw [subset_def] at *
+  intro x
+  simp
+  tauto
 
 /-- Exercise 3.1.12.-/
 theorem SetTheory.Set.subset_inter_subset {A B A' B':Set} (hA'A: A' ⊆ A) (hB'B: B' ⊆ B) :
-    A' ∩ B' ⊆ A ∩ B := by sorry
+    A' ∩ B' ⊆ A ∩ B := by
+  rw [subset_def] at *
+  intro x
+  simp
+  tauto
 
 /-- Exercise 3.1.12.-/
 theorem SetTheory.Set.subset_diff_subset_counter :
-    ∃ (A B A' B':Set), (A' ⊆ A) ∧ (B' ⊆ B) ∧ ¬ (A' \ B') ⊆ (A \ B) := by sorry
+    ∃ (A B A' B':Set), (A' ⊆ A) ∧ (B' ⊆ B) ∧ ¬ (A' \ B') ⊆ (A \ B) := by
+  use singleton_empty, singleton_empty, singleton_empty, empty
+  simp
+  rw [subset_def]
+  -- push_neg
+  -- use empty
+  simp -- This works???
 
 /-
   Final part of Exercise 3.1.12: state and prove a reasonable substitute positive result for the
@@ -1095,7 +1134,62 @@ theorem SetTheory.Set.subset_diff_subset_counter :
 -/
 
 /-- Exercise 3.1.13 -/
-theorem SetTheory.Set.singleton_iff (A:Set) (hA: A ≠ ∅) : (¬∃ B ⊂ A, B ≠ ∅) ↔ ∃ x, A = {x} := by sorry
+theorem SetTheory.Set.singleton_iff (A:Set) (hA: A ≠ ∅) : (¬∃ B ⊂ A, B ≠ ∅) ↔ ∃ x, A = {x} := by
+  constructor
+  . intro h
+    apply nonempty_def at hA
+    obtain ⟨ a, hA ⟩ := hA
+    use a
+    ext x
+    -- If x == a, then this is trivial.
+    -- If x != a, then we can form a contradiction with a strict nonempty subset.
+    by_cases hxa : x = a
+    . rw [hxa]
+      simp [hA]
+    constructor
+    . intro hxA
+      exfalso
+      contrapose! h; clear h
+      use {a}
+      constructor
+      . constructor
+        . rw [subset_def]
+          intro y hy
+          rw [mem_singleton] at hy
+          rwa [hy]
+        . intro contra
+          rw [SetTheory.Set.ext_iff] at contra
+          specialize contra x
+          simp [hxA] at contra
+          contradiction
+      . intro contra
+        rw [SetTheory.Set.ext_iff] at contra
+        specialize contra a
+        simp at contra
+    . intro contra
+      rw [mem_singleton] at contra
+      contradiction
+  . intro h
+    obtain ⟨ a, ha ⟩ := h
+    simp
+    intro B hB
+    ext x
+    simp
+    intro hxB
+    obtain ⟨ hBA, hBA2 ⟩ := hB
+    -- If x != a, we have a contradiction with subset.
+    -- If x == a, then we can use antisymm to show B = A, another contradiction.
+    by_cases hx : x = a
+    . suffices hAB : A ⊆ B
+      . have := (subset_antisymm A B hAB hBA).symm
+        contradiction
+      intro x' hx'
+      rw [ha, mem_singleton] at hx'
+      rwa [hx', ← hx]
+    . rw [subset_def] at hBA
+      specialize hBA x hxB
+      rw [ha, mem_singleton] at hBA
+      contradiction
 
 
 /-
