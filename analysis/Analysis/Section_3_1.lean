@@ -676,12 +676,45 @@ instance SetTheory.Set.instDistribLattice : DistribLattice Set where
   le_antisymm := subset_antisymm
   inf := (· ∩ ·)
   sup := (· ∪ ·)
-  le_sup_left := by sorry
-  le_sup_right := by sorry
-  sup_le := by sorry
-  inf_le_left := by sorry
-  inf_le_right := by sorry
-  le_inf := by sorry
+  le_sup_left := by {
+    intro A B
+    simp [subset_def]
+    intro x h
+    tauto
+  }
+  le_sup_right := by {
+    intro A B
+    simp [subset_def]
+    intro x hx
+    tauto
+  }
+  sup_le := by {
+    intro A B C hAC hBC
+    rw [subset_def] at *
+    intro x hx
+    rw [mem_union] at hx
+    tauto
+  }
+  inf_le_left := by {
+    intro A B
+    rw [subset_def]
+    intro x hx
+    simp at *
+    tauto
+  }
+  inf_le_right := by {
+    intro A B
+    rw [subset_def]
+    intro x
+    simp
+  }
+  le_inf := by {
+    intro A B C
+    rw [subset_def, subset_def, subset_def]
+    simp
+    intro h1 h2 x hx
+    tauto
+  }
   le_sup_inf := by
     intro X Y Z; change (X ∪ Y) ∩ (X ∪ Z) ⊆ X ∪ (Y ∩ Z)
     rw [←union_inter_distrib_left]
@@ -862,7 +895,10 @@ example : ¬ Disjoint ({1, 2, 3}:Set) {2,3,4} := by
   rw [eq_empty_iff_forall_notMem] at h
   aesop
 
-example : Disjoint (∅:Set) ∅ := by sorry
+example : Disjoint (∅:Set) ∅ := by
+  rw [disjoint_iff]
+  ext x
+  simp
 
 /-- Definition 3.1.26 example -/
 
@@ -871,57 +907,156 @@ example : ({1, 2, 3, 4}:Set) \ {2,4,6} = {1, 3} := by
 
 /-- Example 3.1.30 -/
 example : ({3,5,9}:Set).replace (P := fun x y ↦ ∃ (n:ℕ), x.val = n ∧ y = (n+1:ℕ)) (by aesop)
-  = {4,6,10} := by sorry
+  = {4,6,10} := by
+  apply ext
+  simp
+  intro x
+  constructor
+  . intro h
+    obtain ⟨ n, ⟨ hn1, hn2 ⟩ ⟩ | ⟨ n, ⟨ hn1, hn2 ⟩ ⟩ | ⟨ n, ⟨ hn1, hn2 ⟩ ⟩ := h
+    . left
+      simp [hn2]
+      exact (ofNat_inj' n 3).mp hn1.symm
+    . right; left
+      simp [hn2]
+      exact (ofNat_inj' n 5).mp hn1.symm
+    . right; right
+      simp [hn2]
+      exact (ofNat_inj' n 9).mp hn1.symm
+  . intro h
+    obtain h | h | h := h
+    . rw [h]
+      left
+      use 3
+      simp
+    . rw [h]
+      right; left
+      use 5
+      simp
+    . rw [h]
+      right; right
+      use 9
+      simp
 
 /-- Example 3.1.31 -/
 example : ({3,5,9}:Set).replace (P := fun _ y ↦ y=1) (by aesop) = {1} := by
   ext; simp only [replacement_axiom]; aesop
 
 /-- Exercise 3.1.5.  One can use the `tfae_have` and `tfae_finish` tactics here. -/
-theorem SetTheory.Set.subset_tfae (A B:Set) : [A ⊆ B, A ∪ B = B, A ∩ B = A].TFAE := by sorry
+theorem SetTheory.Set.subset_tfae (A B:Set) : [A ⊆ B, A ∪ B = B, A ∩ B = A].TFAE := by
+  have h : A ∪ B = B → A ∩ B = A
+  . intro h
+    rw [SetTheory.Set.ext_iff] at *
+    intro x
+    specialize h x
+    simp at *
+    exact h
+  have h2 : A ⊆ B → A ∪ B = B
+  . intro h
+    rw [SetTheory.Set.ext_iff, subset_def] at *
+    intro x
+    specialize h x
+    simp
+    exact h
+  have h3 : A ∩ B = A → A ⊆ B
+  . intro h
+    rw [subset_def, SetTheory.Set.ext_iff] at *
+    intro x
+    specialize h x
+    simp at h
+    exact h
+  tfae_have 2 → 3 := h
+  tfae_have 1 → 2 := h2
+  tfae_have 3 → 1 := h3
+  tfae_finish
 
 /-- Exercise 3.1.7 -/
 theorem SetTheory.Set.inter_subset_left (A B:Set) : A ∩ B ⊆ A := by
-  sorry
+  simp [subset_def]
+  intro x
+  tauto
 
 /-- Exercise 3.1.7 -/
 theorem SetTheory.Set.inter_subset_right (A B:Set) : A ∩ B ⊆ B := by
-  sorry
+  simp [subset_def]
 
 /-- Exercise 3.1.7 -/
 @[simp]
 theorem SetTheory.Set.subset_inter_iff (A B C:Set) : C ⊆ A ∩ B ↔ C ⊆ A ∧ C ⊆ B := by
-  sorry
+  simp [subset_def]
+  constructor
+  . intro h
+    constructor
+    . intro x hxc
+      specialize h x hxc
+      tauto
+    . intro x hxc
+      specialize h x
+      tauto
+  . intro ⟨ h1, h2 ⟩ x hc
+    tauto
 
 /-- Exercise 3.1.7 -/
 theorem SetTheory.Set.subset_union_left (A B:Set) : A ⊆ A ∪ B := by
-  sorry
+  simp [subset_def]
+  intro x
+  tauto
 
 /-- Exercise 3.1.7 -/
 theorem SetTheory.Set.subset_union_right (A B:Set) : B ⊆ A ∪ B := by
-  sorry
+  simp [subset_def]
+  intro x
+  tauto
 
 /-- Exercise 3.1.7 -/
 @[simp]
 theorem SetTheory.Set.union_subset_iff (A B C:Set) : A ∪ B ⊆ C ↔ A ⊆ C ∧ B ⊆ C := by
-  sorry
+  simp [subset_def]
+  constructor
+  . intro h
+    constructor
+    . intro x
+      specialize h x
+      tauto
+    . intro x
+      specialize h x
+      tauto
+  . intro ⟨ h1, h2 ⟩ x hc
+    tauto
 
 /-- Exercise 3.1.8 -/
 @[simp]
-theorem SetTheory.Set.inter_union_cancel (A B:Set) : A ∩ (A ∪ B) = A := by sorry
+theorem SetTheory.Set.inter_union_cancel (A B:Set) : A ∩ (A ∪ B) = A := by
+  ext x
+  simp
+  tauto
 
 /-- Exercise 3.1.8 -/
 @[simp]
-theorem SetTheory.Set.union_inter_cancel (A B:Set) : A ∪ (A ∩ B) = A := by sorry
+theorem SetTheory.Set.union_inter_cancel (A B:Set) : A ∪ (A ∩ B) = A := by
+  ext x
+  simp
+  tauto
 
 /-- Exercise 3.1.9 -/
 theorem SetTheory.Set.partition_left {A B X:Set} (h_union: A ∪ B = X) (h_inter: A ∩ B = ∅) :
-    A = X \ B := by sorry
+    A = X \ B := by
+  ext x
+  rw [SetTheory.Set.ext_iff] at *
+  specialize h_union x
+  specialize h_inter x
+  simp at *
+  tauto
 
 /-- Exercise 3.1.9 -/
 theorem SetTheory.Set.partition_right {A B X:Set} (h_union: A ∪ B = X) (h_inter: A ∩ B = ∅) :
     B = X \ A := by
-  sorry
+  ext x
+  rw [SetTheory.Set.ext_iff] at *
+  specialize h_union x
+  specialize h_inter x
+  simp at *
+  tauto
 
 /--
   Exercise 3.1.10.
