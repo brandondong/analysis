@@ -143,14 +143,57 @@ theorem SetTheory.Set.not_mem_self (A:Set) : (A:Object) ∉ A := by
   contradiction
 
 /-- Exercise 3.2.2 -/
-theorem SetTheory.Set.not_mem_mem (A B:Set) : (A:Object) ∉ B ∨ (B:Object) ∉ A := by sorry
+theorem SetTheory.Set.not_mem_mem (A B:Set) : (A:Object) ∉ B ∨ (B:Object) ∉ A := by
+  -- Consider the set {A, B}.
+  -- Apply the regularity axiom on it which forces the selection to be A or B
+  -- and so we know Disjoint A {A, B} or Disjoint B {A, B}.
+  have h1 : ({(A: Object), (B: Object)}:Set) ≠ ∅
+  . intro contra
+    rw [SetTheory.Set.ext_iff] at contra
+    specialize contra A
+    simp at contra
+  have h := axiom_of_regularity h1
+  obtain ⟨ ⟨ x, hxAB ⟩, h ⟩ := h
+  rw [mem_pair] at hxAB
+  obtain hxA | hxB := hxAB
+  . specialize h A hxA
+    simp [disjoint_iff, SetTheory.Set.ext_iff] at h
+    specialize h B
+    simp at h
+    tauto
+  . specialize h B hxB
+    simp [disjoint_iff, SetTheory.Set.ext_iff] at h
+    specialize h A
+    simp at h
+    tauto
 
 /-- Exercise 3.2.3 -/
 theorem SetTheory.Set.univ_iff : axiom_of_universal_specification ↔
-  ∃ (U:Set), ∀ x, x ∈ U := by sorry
+  ∃ (U:Set), ∀ x, x ∈ U := by
+  constructor
+  . intro h
+    set P : Object → Prop := fun x ↦ True
+    choose S hS using h P
+    simp [P] at hS
+    use S
+  . intro h
+    -- Axiom of specification becomes universal with this set of everything.
+    obtain ⟨ U, hU ⟩ := h
+    unfold axiom_of_universal_specification
+    intro P
+    set S := U.specify (fun x ↦ P x.val)
+    use S
+    intro x
+    have hs := specification_axiom' (fun (x:U.toSubtype) ↦ P x.val)
+    specialize hU x
+    specialize hs ⟨ x, hU ⟩
+    exact hs
 
 /-- Exercise 3.2.3 -/
-theorem SetTheory.Set.no_univ : ¬ ∃ (U:Set), ∀ (x:Object), x ∈ U := by sorry
+theorem SetTheory.Set.no_univ : ¬ ∃ (U:Set), ∀ (x:Object), x ∈ U := by
+  intro h
+  rw [← univ_iff] at h
+  exact Russells_paradox h
 
 
 end Chapter3
