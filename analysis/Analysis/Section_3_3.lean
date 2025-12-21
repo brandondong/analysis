@@ -600,20 +600,60 @@ def Function.comp_surjective' : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g 
 
 /-- Exercise 3.3.6 -/
 theorem Function.inverse_comp_self {X Y: Set} {f: Function X Y} (h: f.bijective) (x: X) :
-    (f.inverse h) (f x) = x := by sorry
+    (f.inverse h) (f x) = x := by
+  symm
+  rw [Function.eval]
 
 theorem Function.self_comp_inverse {X Y: Set} {f: Function X Y} (h: f.bijective) (y: Y) :
-    f ((f.inverse h) y) = y := by sorry
+    f ((f.inverse h) y) = y := by
+  -- Obtain the x value of f.inverse y.
+  set hy := ((f.inverse h)).unique
+  specialize hy y
+  obtain ⟨ x, ⟨ hx, hx2 ⟩ ⟩ := hy
+  have hx3 := hx
+  simp at hx
+  rw [← Function.eval] at hx3
+  rwa [← hx3]
 
 theorem Function.inverse_bijective {X Y: Set} {f: Function X Y} (h: f.bijective) :
-    (f.inverse h).bijective := by sorry
+    (f.inverse h).bijective := by
+  constructor
+  . intro y1 y2 hy
+    contrapose! hy
+    -- Obtain the x values of f.inverse y where f x = y.
+    set hy1 := ((f.inverse h)).unique y1
+    set hy2 := ((f.inverse h)).unique y2
+    obtain ⟨ x1, ⟨ hx1, _ ⟩ ⟩ := hy1
+    obtain ⟨ x2, ⟨ hx2, _ ⟩ ⟩ := hy2
+    have hx1f := hx1
+    have hx2f := hx2
+    rw [← Function.eval] at hx1f
+    rw [← Function.eval] at hx2f
+    simp at hx1
+    simp at hx2
+    -- If f.inverse y1 = f.inverse y2, then x1 == x2.
+    -- Therefore, f x1 == f x2 (y1 == y2).
+    rw [← hx1, ← hx2]
+    rw [← hx1f, ← hx2f] at hy
+    simp [hy]
+  . intro x
+    use f x
+    exact inverse_comp_self h x
 
 theorem Function.inverse_inverse {X Y: Set} {f: Function X Y} (h: f.bijective) :
-    (f.inverse h).inverse (f.inverse_bijective h) = f := by sorry
+    (f.inverse h).inverse (f.inverse_bijective h) = f := by
+  rw [Function.eq_iff]
+  intro x
+  symm
+  rw [Function.inverse_eval]
+  exact inverse_comp_self h x
 
 /-- Exercise 3.3.7 -/
 theorem Function.comp_bijective {X Y Z:Set} {f: Function X Y} {g : Function Y Z} (hf: f.bijective)
-  (hg: g.bijective) : (g ○ f).bijective := by sorry
+  (hg: g.bijective) : (g ○ f).bijective := by
+  constructor
+  . exact Function.comp_of_inj hf.1 hg.1
+  . exact Function.comp_of_surj hf.2 hg.2
 
 theorem Function.inv_of_comp {X Y Z:Set} {f: Function X Y} {g : Function Y Z}
   (hf: f.bijective) (hg: g.bijective) :
