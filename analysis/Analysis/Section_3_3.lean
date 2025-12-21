@@ -516,7 +516,7 @@ theorem Function.comp_cancel_right {X Y Z:Set} {f: Function X Y} {g g': Function
   simp at heq
   exact heq
 
-def Function.comp_cancel_left_without_hg : Decidable (∀ (X Y Z:Set) (f f': Function X Y) (g : Function Y Z) (heq : g ○ f = g ○ f'), f = f') := by
+def Function.comp_cancel_left_without_hg : Decidable (∀ (X Y Z:Set) (f f': Function X Y) (g : Function Y Z) (_heq : g ○ f = g ○ f'), f = f') := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
   apply isFalse
   push_neg
@@ -530,7 +530,7 @@ def Function.comp_cancel_left_without_hg : Decidable (∀ (X Y Z:Set) (f f': Fun
     rw [SetTheory.Set.nat_coe_eq] at h
     simp at h
 
-def Function.comp_cancel_right_without_hg : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g g': Function Y Z) (heq : g ○ f = g' ○ f), g = g') := by
+def Function.comp_cancel_right_without_hg : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g g': Function Y Z) (_heq : g ○ f = g' ○ f), g = g') := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
   apply isFalse
   push_neg
@@ -547,20 +547,56 @@ def Function.comp_cancel_right_without_hg : Decidable (∀ (X Y Z:Set) (f: Funct
   Exercise 3.3.5.
 -/
 theorem Function.comp_injective {X Y Z:Set} {f: Function X Y} {g : Function Y Z} (hinj :
-    (g ○ f).one_to_one) : f.one_to_one := by sorry
+    (g ○ f).one_to_one) : f.one_to_one := by
+  by_contra hf
+  -- Form a contradiction by showing g f x = g f x' while x != x'.
+  rw [Function.one_to_one_iff] at *
+  push_neg at hf
+  obtain ⟨ x, ⟨ x', ⟨ hxf, hx ⟩ ⟩ ⟩ := hf
+  contrapose! hinj; clear hinj
+  use x, x'
+  constructor
+  . simp [hxf]
+  . exact hx
 
 theorem Function.comp_surjective {X Y Z:Set} {f: Function X Y} {g : Function Y Z} (hsurj :
-    (g ○ f).onto) : g.onto := by sorry
+    (g ○ f).onto) : g.onto := by
+  intro y
+  specialize hsurj y
+  obtain ⟨ x, hx ⟩ := hsurj
+  use f x
+  simp at hx
+  exact hx
 
-def Function.comp_injective' : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g : Function Y Z) (hinj :
+def Function.comp_injective' : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g : Function Y Z) (_hinj :
     (g ○ f).one_to_one), g.one_to_one) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isFalse
+  push_neg
+  use ∅, Nat, Nat, Function.mk_fn (fun x ↦ 0), SetTheory.Set.f_3_3_5
+  constructor
+  . simp
+  . simp
+    use 0, (Subtype.property _), 1, (Subtype.property _)
+    simp
 
-def Function.comp_surjective' : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g : Function Y Z) (hsurj :
+def Function.comp_surjective' : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g : Function Y Z) (_hsurj :
     (g ○ f).onto), f.onto) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isFalse
+  push_neg
+  have h : SetTheory.set_to_object SetTheory.Set.empty ∈ SetTheory.Set.singleton_empty := by simp
+  use Nat, Nat, SetTheory.Set.singleton_empty, SetTheory.Set.f_3_3_5, Function.mk_fn (fun x ↦ ⟨ SetTheory.Set.empty, h⟩ )
+  constructor
+  . intro ⟨ d, hy ⟩
+    use 0
+    simp
+    simp at hy
+    rw [hy]
+  . intro h
+    specialize h 0
+    obtain ⟨ x, hx ⟩ := h
+    simp at hx
 
 /-- Exercise 3.3.6 -/
 theorem Function.inverse_comp_self {X Y: Set} {f: Function X Y} (h: f.bijective) (x: X) :
