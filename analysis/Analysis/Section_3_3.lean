@@ -494,18 +494,54 @@ theorem empty_function_bijective_iff (X: Set) (f: Function ∅ X) : f.bijective 
   Exercise 3.3.4.
 -/
 theorem Function.comp_cancel_left {X Y Z:Set} {f f': Function X Y} {g : Function Y Z}
-  (heq : g ○ f = g ○ f') (hg: g.one_to_one) : f = f' := by sorry
+  (heq : g ○ f = g ○ f') (hg: g.one_to_one) : f = f' := by
+  rw [eq_iff] at *
+  intro ⟨ x, hx ⟩
+  -- Consider f x and f' x. Since g f x = g f x'. Through injectivity, we cancel the g.
+  specialize heq ⟨ x, hx ⟩
+  simp at heq
+  simp at hg
+  specialize hg (f ⟨ x, hx ⟩) (Subtype.property _) (f' ⟨ x, hx ⟩) (Subtype.property _)
+  simp [heq, SetTheory.Set.coe_inj] at hg
+  exact hg
 
 theorem Function.comp_cancel_right {X Y Z:Set} {f: Function X Y} {g g': Function Y Z}
-  (heq : g ○ f = g' ○ f) (hf: f.onto) : g = g' := by sorry
+  (heq : g ○ f = g' ○ f) (hf: f.onto) : g = g' := by
+  rw [eq_iff] at *
+  intro y
+  specialize hf y
+  obtain ⟨ x, hx ⟩ := hf
+  rw [← hx]
+  specialize heq x
+  simp at heq
+  exact heq
 
 def Function.comp_cancel_left_without_hg : Decidable (∀ (X Y Z:Set) (f f': Function X Y) (g : Function Y Z) (heq : g ○ f = g ○ f'), f = f') := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isFalse
+  push_neg
+  use Nat, Nat, Nat, SetTheory.Set.f_3_3_14, SetTheory.Set.g_3_3_14, SetTheory.Set.f_3_3_5
+  constructor
+  . simp
+  . intro h
+    rw [eq_iff] at h
+    specialize h 0
+    simp at h
+    rw [SetTheory.Set.nat_coe_eq] at h
+    simp at h
 
 def Function.comp_cancel_right_without_hg : Decidable (∀ (X Y Z:Set) (f: Function X Y) (g g': Function Y Z) (heq : g ○ f = g' ○ f), g = g') := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isFalse
+  push_neg
+  use ∅, Nat, Nat, Function.mk_fn (fun x ↦ 0), SetTheory.Set.g_3_3_14, SetTheory.Set.f_3_3_14
+  constructor
+  . rw [eq_iff]
+    simp
+  . intro h
+    rw [eq_iff] at h
+    specialize h 0
+    simp [SetTheory.Set.nat_coe_eq] at h
 
 /--
   Exercise 3.3.5.
