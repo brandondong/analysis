@@ -41,7 +41,18 @@ theorem SetTheory.Set.mem_image {X Y:Set} (f:X → Y) (S: Set) (y:Object) :
 
 /-- Alternate definition of image using axiom of specification -/
 theorem SetTheory.Set.image_eq_specify {X Y:Set} (f:X → Y) (S: Set) :
-    image f S = Y.specify (fun y ↦ ∃ x:X, x.val ∈ S ∧ f x = y) := by sorry
+    image f S = Y.specify (fun y ↦ ∃ x:X, x.val ∈ S ∧ f x = y) := by
+  rw [SetTheory.Set.ext_iff]
+  intro y
+  rw [SetTheory.Set.mem_image]
+  simp
+  constructor <;> intro h
+  . obtain ⟨ s, ⟨ hsS, ⟨ hsX, hfs ⟩ ⟩ ⟩ := h
+    rw [← hfs]
+    use (Subtype.property _), s, hsS, hsX
+  . obtain ⟨ hy, ⟨ s, ⟨ hsS, ⟨ hsX, hf ⟩ ⟩ ⟩ ⟩ := h
+    use s, hsS, hsX
+    simp [hf]
 
 /--
   Connection with Mathlib's notion of image.  Note the need to utilize the `Subtype.val` coercion
@@ -68,10 +79,22 @@ theorem SetTheory.Set.image_f_3_4_2 : image f_3_4_2 {1,2,3} = {2,4,6} := by
 example : (fun n:ℤ ↦ n^2) '' {-1,0,1,2} = {0,1,4} := by aesop
 
 theorem SetTheory.Set.mem_image_of_eval {X Y:Set} (f:X → Y) (S: Set) (x:X) :
-    x.val ∈ S → (f x).val ∈ image f S := by sorry
+    x.val ∈ S → (f x).val ∈ image f S := by
+    intro hxS
+    rw [mem_image]
+    use x
 
 theorem SetTheory.Set.mem_image_of_eval_counter :
-    ∃ (X Y:Set) (f:X → Y) (S: Set) (x:X), ¬((f x).val ∈ image f S → x.val ∈ S) := by sorry
+    ∃ (X Y:Set) (f:X → Y) (S: Set) (x:X), ¬((f x).val ∈ image f S → x.val ∈ S) := by
+    use Nat, SetTheory.Set.singleton_empty, (fun _ ↦ ⟨ SetTheory.Set.empty, (by aesop)⟩ ), {0}, 1
+    push_neg
+    constructor
+    . rw [mem_image]
+      use 0
+      constructor
+      . simp
+      simp
+    . simp
 
 /--
   Definition 3.4.4 (inverse images).
