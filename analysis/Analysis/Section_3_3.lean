@@ -657,7 +657,20 @@ theorem Function.comp_bijective {X Y Z:Set} {f: Function X Y} {g : Function Y Z}
 
 theorem Function.inv_of_comp {X Y Z:Set} {f: Function X Y} {g : Function Y Z}
   (hf: f.bijective) (hg: g.bijective) :
-    (g ○ f).inverse (Function.comp_bijective hf hg) = (f.inverse hf) ○ (g.inverse hg) := by sorry
+    (g ○ f).inverse (Function.comp_bijective hf hg) = (f.inverse hf) ○ (g.inverse hg) := by
+  rw [Function.eq_iff]
+  intro z
+  -- There is a y such that g y = z. There is a x such that f x = y.
+  -- Therefore f.inverse(g.inverse(z)) = x.
+  -- Then we just need to prove g(f(x)) = z.
+  obtain ⟨ y, hy ⟩ := hg.2 z
+  obtain ⟨ x, hx ⟩ := hf.2 y
+  have hx' := (Function.inverse_eval hf y x).mpr hx
+  have hy' := (Function.inverse_eval hg z y).mpr hy
+  simp
+  rw [← hy', ← hx']
+  symm
+  simp [Function.eval, hx, hy]
 
 /-- Exercise 3.3.8 -/
 abbrev Function.inclusion {X Y:Set} (h: X ⊆ Y) :
@@ -666,30 +679,118 @@ abbrev Function.inclusion {X Y:Set} (h: X ⊆ Y) :
 abbrev Function.id (X:Set) : Function X X := Function.mk_fn (fun x ↦ x)
 
 theorem Function.inclusion_id (X:Set) :
-    Function.inclusion (SetTheory.Set.subset_self X) = Function.id X := by sorry
+    Function.inclusion (SetTheory.Set.subset_self X) = Function.id X := by
+  simp
 
 theorem Function.inclusion_comp (X Y Z:Set) (hXY: X ⊆ Y) (hYZ: Y ⊆ Z) :
-    Function.inclusion hYZ ○ Function.inclusion hXY = Function.inclusion (SetTheory.Set.subset_trans hXY hYZ) := by sorry
+    Function.inclusion hYZ ○ Function.inclusion hXY = Function.inclusion (SetTheory.Set.subset_trans hXY hYZ) := by
+  simp
 
-theorem Function.comp_id {A B:Set} (f: Function A B) : f ○ Function.id A = f := by sorry
+theorem Function.comp_id {A B:Set} (f: Function A B) : f ○ Function.id A = f := by
+  rw [Function.eq_iff]
+  intro a
+  simp
 
-theorem Function.id_comp {A B:Set} (f: Function A B) : Function.id B ○ f = f := by sorry
+theorem Function.id_comp {A B:Set} (f: Function A B) : Function.id B ○ f = f := by
+  rw [Function.eq_iff]
+  intro a
+  simp
 
 theorem Function.comp_inv {A B:Set} (f: Function A B) (hf: f.bijective) :
-    f ○ f.inverse hf = Function.id B := by sorry
+    f ○ f.inverse hf = Function.id B := by
+  rw [Function.eq_iff]
+  intro b
+  simp
+  exact self_comp_inverse hf b
 
 theorem Function.inv_comp {A B:Set} (f: Function A B) (hf: f.bijective) :
-    f.inverse hf ○ f = Function.id A := by sorry
+    f.inverse hf ○ f = Function.id A := by
+  rw [Function.eq_iff]
+  intro a
+  simp
+  exact inverse_comp_self hf a
 
 open Classical in
 theorem Function.glue {X Y Z:Set} (hXY: Disjoint X Y) (f: Function X Z) (g: Function Y Z) :
     ∃! h: Function (X ∪ Y) Z, (h ○ Function.inclusion (SetTheory.Set.subset_union_left X Y) = f)
-    ∧ (h ○ Function.inclusion (SetTheory.Set.subset_union_right X Y) = g) := by sorry
+    ∧ (h ○ Function.inclusion (SetTheory.Set.subset_union_right X Y) = g) := by
+  set h: Function (X ∪ Y) Z := Function.mk_fn (fun a ↦
+    if hX : a.val ∈ X then (f (⟨ a.val, hX ⟩) ) else (g ⟨ a.val, (by aesop) ⟩)
+  )
+  use h
+  simp
+  constructor
+  . constructor
+    . rw [Function.eq_iff]
+      intro x
+      simp [h]
+      intro contra
+      simp [x.2] at contra
+    . rw [Function.eq_iff]
+      intro y
+      simp [h]
+      intro contra
+      rw [SetTheory.Set.disjoint_iff, SetTheory.Set.ext_iff] at hXY
+      specialize hXY y
+      simp [contra, y.2] at hXY
+  . intro h' hfh' hgh'
+    rw [Function.eq_iff]
+    intro ⟨ a, ha ⟩
+    simp at ha
+    simp [h]
+    by_cases haX : a ∈ X
+    . simp [haX]
+      rw [Function.eq_iff] at hfh'
+      specialize hfh' ⟨ a, haX ⟩
+      simp at hfh'
+      exact hfh'
+    . simp [haX] at ha
+      simp [haX]
+      rw [Function.eq_iff] at hgh'
+      specialize hgh' ⟨ a, ha ⟩
+      simp at hgh'
+      exact hgh'
 
 open Classical in
 theorem Function.glue' {X Y Z:Set} (f: Function X Z) (g: Function Y Z)
     (hfg : ∀ x : ((X ∩ Y): Set), f ⟨x.val, by aesop⟩ = g ⟨x.val, by aesop⟩)  :
     ∃! h: Function (X ∪ Y) Z, (h ○ Function.inclusion (SetTheory.Set.subset_union_left X Y) = f)
-    ∧ (h ○ Function.inclusion (SetTheory.Set.subset_union_right X Y) = g) := by sorry
+    ∧ (h ○ Function.inclusion (SetTheory.Set.subset_union_right X Y) = g) := by
+  set h: Function (X ∪ Y) Z := Function.mk_fn (fun a ↦
+    if hX : a.val ∈ X then (f (⟨ a.val, hX ⟩) ) else (g ⟨ a.val, (by aesop) ⟩)
+  )
+  use h
+  simp
+  constructor
+  . constructor
+    . rw [Function.eq_iff]
+      intro x
+      simp [h]
+      intro contra
+      simp [x.2] at contra
+    . rw [Function.eq_iff]
+      intro y
+      simp [h]
+      intro hyX
+      simp at hfg
+      specialize hfg y.val ⟨ hyX, y.2 ⟩
+      exact hfg
+  . intro h' hfh' hgh'
+    rw [Function.eq_iff]
+    intro ⟨ a, ha ⟩
+    simp at ha
+    simp [h]
+    by_cases haX : a ∈ X
+    . simp [haX]
+      rw [Function.eq_iff] at hfh'
+      specialize hfh' ⟨ a, haX ⟩
+      simp at hfh'
+      exact hfh'
+    . simp [haX] at ha
+      simp [haX]
+      rw [Function.eq_iff] at hgh'
+      specialize hgh' ⟨ a, ha ⟩
+      simp at hgh'
+      exact hgh'
 
 end Chapter3
