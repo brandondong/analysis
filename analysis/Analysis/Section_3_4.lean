@@ -203,13 +203,43 @@ theorem SetTheory.Set.example_3_4_9 (F:Object) :
 
 /-- Exercise 3.4.6 (i). One needs to provide a suitable definition of the power set here. -/
 def SetTheory.Set.powerset (X:Set) : Set :=
-  (({0,1} ^ X): Set).replace (P := sorry) (by sorry)
+  -- Create a subset of X using the domain that evaluated to 1.
+  (({0,1} ^ X): Set).replace (P := fun fb Y ↦ ∃ f: X → ({0,1}:Set), f = fb.val ∧ Y = X.specify (fun x ↦ (f x).val = 1)) (by aesop)
 
 open Classical in
 /-- Exercise 3.4.6 (i) -/
 @[simp]
 theorem SetTheory.Set.mem_powerset {X:Set} (x:Object) :
-    x ∈ powerset X ↔ ∃ Y:Set, x = Y ∧ Y ⊆ X := by sorry
+    x ∈ powerset X ↔ ∃ Y:Set, x = Y ∧ Y ⊆ X := by
+  constructor
+  . intro h
+    simp [powerset] at h
+    obtain ⟨ f, hf ⟩ := h
+    rw [hf]
+    use X.specify fun x ↦ (f x).val = 1
+    simp
+    intro x' hx'
+    simp at hx'
+    obtain ⟨ hx', _ ⟩ := hx'
+    exact hx'
+  . intro h
+    obtain ⟨ Y, ⟨ hx, hYX ⟩ ⟩ := h
+    simp [powerset]
+    simp [hx]
+    set f: X → ({0,1}:Set) := fun x ↦ if x.val ∈ Y then ⟨ 1, (by aesop) ⟩ else ⟨ 0, (by aesop) ⟩
+    use f
+    simp [f]
+    ext y
+    constructor
+    . intro hy
+      simp [hy]
+      specialize hYX y
+      exact hYX hy
+    . intro hy
+      simp at hy
+      obtain ⟨ hyX, h ⟩ := hy
+      by_contra hyY
+      simp [hyY] at h
 
 /-- Lemma 3.4.10 -/
 theorem SetTheory.Set.exists_powerset (X:Set) :
