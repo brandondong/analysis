@@ -430,39 +430,233 @@ theorem SetTheory.Set.preimage_of_image_of_preimage {X Y:Set} (f:X → Y) (U: Se
   Exercise 3.4.3.
 -/
 theorem SetTheory.Set.image_of_inter {X Y:Set} (f:X → Y) (A B: Set) :
-    image f (A ∩ B) ⊆ (image f A) ∩ (image f B) := by sorry
+    image f (A ∩ B) ⊆ (image f A) ∩ (image f B) := by
+  intro y hy
+  rw [mem_inter]
+  rw [mem_image] at hy
+  obtain ⟨ x, ⟨ hx, hfx ⟩ ⟩ := hy
+  simp at hx
+  obtain ⟨ hxA, hxB ⟩ := hx
+  rw [← hfx]
+  constructor <;> rw [mem_image] <;> use x
 
 theorem SetTheory.Set.image_of_diff {X Y:Set} (f:X → Y) (A B: Set) :
-    (image f A) \ (image f B) ⊆ image f (A \ B) := by sorry
+    (image f A) \ (image f B) ⊆ image f (A \ B) := by
+  intro y hy
+  rw [mem_sdiff] at hy
+  obtain ⟨ hyA, hyB ⟩ := hy
+  rw [mem_image] at *
+  obtain ⟨ x, ⟨ hxA, hfx ⟩ ⟩ := hyA
+  use x
+  simp [hfx]
+  use hxA
+  push_neg at hyB
+  intro h
+  specialize hyB x
+  simp [h] at hyB
+  contradiction
 
 theorem SetTheory.Set.image_of_union {X Y:Set} (f:X → Y) (A B: Set) :
-    image f (A ∪ B) = (image f A) ∪ (image f B) := by sorry
+    image f (A ∪ B) = (image f A) ∪ (image f B) := by
+  ext y
+  constructor <;> intro h
+  . rw [mem_union]
+    rw [mem_image, mem_image] at *
+    obtain ⟨ x, ⟨ hx, hfx ⟩ ⟩ := h
+    simp at hx
+    obtain hx | hx := hx
+    . left
+      use x
+    . right
+      use x
+  . rw [mem_union] at h
+    obtain h | h := h <;> rw [mem_image] at * <;> obtain ⟨ x, ⟨ hx, hfx ⟩ ⟩ := h <;> use x <;> simp [hfx]
+    . left
+      exact hx
+    . right
+      exact hx
 
 def SetTheory.Set.image_of_inter' : Decidable (∀ X Y:Set, ∀ f:X → Y, ∀ A B: Set, image f (A ∩ B) = (image f A) ∩ (image f B)) := by
   -- The first line of this construction should be either `apply isTrue` or `apply isFalse`
-  sorry
+  -- Consider A and B are disjoint but the function maps everything to one element.
+  apply isFalse
+  push_neg
+  set f : Nat → singleton_empty := fun _ ↦ ⟨ empty, (by aesop) ⟩
+  use Nat, singleton_empty, f, {0}, {1}
+  intro h
+  rw [SetTheory.Set.ext_iff] at h
+  specialize h empty
+  replace h := h.mpr
+  contrapose! h; clear h
+  constructor
+  . rw [mem_inter]
+    constructor <;> rw [mem_image]
+    . use 0, (by simp)
+    . use 1, (by simp)
+  . rw [mem_image]
+    push_neg
+    intro x hx
+    rw [mem_inter, mem_singleton, mem_singleton] at hx
+    obtain ⟨ hx1, hx2 ⟩ := hx
+    simp [hx2] at hx1
 
 def SetTheory.Set.image_of_diff' : Decidable (∀ X Y:Set, ∀ f:X → Y, ∀ A B: Set, image f (A \ B) = (image f A) \ (image f B)) := by
   -- The first line of this construction should be either `apply isTrue` or `apply isFalse`
-  sorry
+  -- Consider the same as above where the function maps everything to one element and B ⊆ A.
+  apply isFalse
+  push_neg
+  set f : Nat → singleton_empty := fun _ ↦ ⟨ empty, (by aesop) ⟩
+  use Nat, singleton_empty, f, {0, 1}, {1}
+  intro h
+  rw [SetTheory.Set.ext_iff] at h
+  specialize h empty
+  replace h := h.mp
+  contrapose! h; clear h
+  constructor
+  . rw [mem_image]
+    use 0, (by simp)
+  . rw [mem_sdiff]
+    push_neg
+    intro _
+    rw [mem_image]
+    use 1, (by simp)
 
 /-- Exercise 3.4.4 -/
 theorem SetTheory.Set.preimage_of_inter {X Y:Set} (f:X → Y) (A B: Set) :
-    preimage f (A ∩ B) = (preimage f A) ∩ (preimage f B) := by sorry
+    preimage f (A ∩ B) = (preimage f A) ∩ (preimage f B) := by
+  ext x
+  rw [mem_inter]
+  constructor <;> intro h <;> rw [mem_preimage', mem_preimage'] at *
+  . obtain ⟨ x, ⟨ hx, hfx ⟩ ⟩ := h
+    rw [mem_inter] at hfx
+    obtain ⟨ hfxA, hfxB ⟩ := hfx
+    constructor <;> use x
+  . obtain ⟨ hxA, hxB ⟩ := h
+    obtain ⟨ x1, ⟨ hx1, hfx1 ⟩ ⟩ := hxA
+    obtain ⟨ x2, ⟨ hx2, hfx2 ⟩ ⟩ := hxB
+    use x1, hx1
+    rw [mem_inter]
+    constructor
+    . exact hfx1
+    . rw [← hx1] at hx2
+      suffices h : x2 = x1
+      . simp [← h, hfx2]
+      exact (coe_inj X x2 x1).mp hx2
 
 theorem SetTheory.Set.preimage_of_union {X Y:Set} (f:X → Y) (A B: Set) :
-    preimage f (A ∪ B) = (preimage f A) ∪ (preimage f B) := by sorry
+    preimage f (A ∪ B) = (preimage f A) ∪ (preimage f B) := by
+  ext x
+  rw [mem_union]
+  constructor <;> intro h <;> rw [mem_preimage', mem_preimage'] at *
+  . obtain ⟨ x, ⟨ hx, hfx ⟩ ⟩ := h
+    simp at hfx
+    obtain hfx | hfx := hfx
+    . left
+      use x
+    . right
+      use x
+  . obtain h | h := h <;> obtain ⟨ x, ⟨ hx, hfx ⟩ ⟩ := h <;> use x, hx <;> simp [hfx]
 
 theorem SetTheory.Set.preimage_of_diff {X Y:Set} (f:X → Y) (A B: Set) :
-    preimage f (A \ B) = (preimage f A) \ (preimage f B)  := by sorry
+    preimage f (A \ B) = (preimage f A) \ (preimage f B)  := by
+  ext x
+  rw [mem_sdiff]
+  constructor <;> intro h <;> rw [mem_preimage', mem_preimage'] at *
+  . obtain ⟨ x, ⟨ hx, hfx ⟩ ⟩ := h
+    simp at hfx
+    obtain ⟨ hfxA, hfxB ⟩ := hfx
+    constructor
+    . use x
+    . push_neg
+      intro x2 hx2
+      rw [← hx] at hx2
+      suffices h : x2 = x
+      . simp [h, hfxB]
+      exact (coe_inj X x2 x).mp hx2
+  . obtain ⟨ hA, hB ⟩ := h
+    obtain ⟨ x, ⟨ hx, hfx ⟩ ⟩ := hA
+    push_neg at hB
+    use x, hx
+    rw [mem_sdiff]
+    use hfx
+    apply hB
+    exact hx
 
 /-- Exercise 3.4.5 -/
 theorem SetTheory.Set.image_preimage_of_surj {X Y:Set} (f:X → Y) :
-    (∀ S, S ⊆ Y → image f (preimage f S) = S) ↔ Function.Surjective f := by sorry
+    (∀ S, S ⊆ Y → image f (preimage f S) = S) ↔ Function.Surjective f := by
+  constructor <;> intro h
+  . -- If f is not surjective, then there exists some y that is not mapped.
+    -- Then we can specialize S = Y, image preimage won't include Y.
+    by_contra hsurj
+    unfold Function.Surjective at hsurj
+    push_neg at hsurj
+    obtain ⟨ y, hy ⟩ := hsurj
+    specialize h Y (by aesop)
+    rw [SetTheory.Set.ext_iff] at h
+    replace h := (h y).mpr y.2
+    rw [mem_image] at h
+    obtain ⟨ x, ⟨ hx, hfx ⟩ ⟩ := h
+    simp at hx
+    specialize hy x
+    have : f x = y := by exact (coe_inj Y (f x) y).mp hfx
+    contradiction
+  . intro S hSY
+    ext y
+    constructor <;> intro hy
+    . rw [mem_image] at hy
+      obtain ⟨ x, ⟨ hx, hfx ⟩ ⟩ := hy
+      simp at hx
+      simp [← hfx, hx]
+    . rw [mem_image]
+      specialize h ⟨ y, (by aesop) ⟩
+      obtain ⟨ x, hx ⟩ := h
+      use x
+      constructor
+      . simp
+        use x.2
+        simp [hx, hy]
+      . simp [hx]
 
 /-- Exercise 3.4.5 -/
 theorem SetTheory.Set.preimage_image_of_inj {X Y:Set} (f:X → Y) :
-    (∀ S, S ⊆ X → preimage f (image f S) = S) ↔ Function.Injective f := by sorry
+    (∀ S, S ⊆ X → preimage f (image f S) = S) ↔ Function.Injective f := by
+  constructor <;> intro h
+  . intro x1 x2
+    intro hfx
+    -- Consider the set {x1}. preimage image will contain x2.
+    specialize h ({x1.val}:Set) (by {
+      intro x' hx'
+      simp at hx'
+      simp [hx', x1.2]
+    })
+    rw [SetTheory.Set.ext_iff] at h
+    specialize h x2
+    rw [mem_preimage'] at h
+    replace h := h.mp
+    simp at h
+    suffices hx : x2.val = x1.val
+    . exact (coe_inj X x1 x2).mp (id (Eq.symm hx))
+    apply h
+    . exact x1.2
+    . exact x2.2
+    . exact congrArg Subtype.val hfx
+  . intro S hS
+    ext x
+    constructor <;> intro hx
+    . rw [mem_preimage'] at hx
+      obtain ⟨ x2, ⟨ hx2, hfx2 ⟩ ⟩ := hx
+      rw [mem_image] at hfx2
+      obtain ⟨ x3, ⟨ hx3, hfx3 ⟩ ⟩ := hfx2
+      unfold Function.Injective at h
+      replace hfx3 : (f x3) = (f x2) := by exact (coe_inj Y (f x3) (f x2)).mp hfx3
+      specialize h hfx3
+      simp [← hx2, ← h, hx3]
+    . rw [mem_preimage']
+      use ⟨ x, (by aesop) ⟩
+      use (by simp)
+      rw [mem_image]
+      use ⟨ x, (by aesop) ⟩
 
 /-- Helper lemma for Exercise 3.4.7. -/
 @[simp]
