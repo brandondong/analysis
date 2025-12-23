@@ -279,7 +279,21 @@ theorem SetTheory.Set.union_axiom (A: Set) (x:Object) :
 /-- Example 3.4.12 -/
 theorem SetTheory.Set.example_3_4_12 :
     union { (({2,3}:Set):Object), (({3,4}:Set):Object), (({4,5}:Set):Object) } = {2,3,4,5} := by
-  sorry
+  ext x
+  simp [union_axiom]
+  constructor <;> intro h
+  . obtain ⟨ X, ⟨ hx, hX ⟩ ⟩ := h
+    simp [SetTheory.Set.ext_iff] at hX
+    obtain hX | hX | hX := hX <;> specialize hX x <;> tauto
+  . obtain hx | hx | hx | hx := h
+    . use {2, 3}
+      simp [hx]
+    . use {2, 3}
+      simp [hx]
+    . use {3, 4}
+      simp [hx]
+    . use {4, 5}
+      simp [hx]
 
 /-- Connection with Mathlib union -/
 theorem SetTheory.Set.union_eq (A: Set) :
@@ -311,7 +325,13 @@ theorem SetTheory.Set.iUnion_eq (I: Set) (A: I → Set) :
     (iUnion I A : _root_.Set Object) = ⋃ α, (A α: _root_.Set Object) := by
   ext; simp [mem_iUnion]
 
-theorem SetTheory.Set.iUnion_of_empty (A: (∅:Set) → Set) : iUnion (∅:Set) A = ∅ := by sorry
+theorem SetTheory.Set.iUnion_of_empty (A: (∅:Set) → Set) : iUnion (∅:Set) A = ∅ := by
+  ext x
+  simp
+  intro hx
+  rw [mem_iUnion] at hx
+  obtain ⟨ ⟨ x', hx' ⟩, _ ⟩ := hx
+  simp at hx'
 
 /-- Indexed intersection -/
 noncomputable abbrev SetTheory.Set.nonempty_choose {I:Set} (hI: I ≠ ∅) : I :=
@@ -325,23 +345,86 @@ noncomputable abbrev SetTheory.Set.iInter (I: Set) (hI: I ≠ ∅) (A: I → Set
 
 theorem SetTheory.Set.mem_iInter {I:Set} (hI: I ≠ ∅) (A: I → Set) (x:Object) :
     x ∈ iInter I hI A ↔ ∀ α:I, x ∈ A α := by
-  sorry
+  simp
+  intro h
+  set i := (nonempty_choose hI)
+  specialize h i i.2
+  exact h
 
 /-- Exercise 3.4.1 -/
 theorem SetTheory.Set.preimage_eq_image_of_inv {X Y V:Set} (f:X → Y) (f_inv: Y → X)
-  (hf: Function.LeftInverse f_inv f ∧ Function.RightInverse f_inv f) (hV: V ⊆ Y) :
-    image f_inv V = preimage f V := by sorry
+  (hf: Function.LeftInverse f_inv f ∧ Function.RightInverse f_inv f) (_hV: V ⊆ Y) :
+    image f_inv V = preimage f V := by
+  ext x
+  -- Can't prove f_inv = inverse of f...
+  simp
+  obtain ⟨ hfl, hfr ⟩ := hf
+  constructor <;> intro h
+  . obtain ⟨ y, ⟨ ⟨ hy, hfxy ⟩, hyV ⟩ ⟩ := h
+    rw [← hfxy]
+    simp
+    specialize hfr ⟨ y, hy ⟩
+    simp [hfr, hyV]
+    exact Subtype.property _
+  . obtain ⟨ hx, hfxV ⟩ := h
+    use (f ⟨x, hx⟩)
+    simp [hfxV]
+    constructor
+    . exact Subtype.property _
+    specialize hfl ⟨x, hx⟩
+    simp [hfl]
 
 /- Exercise 3.4.2.  State and prove an assertion connecting `preimage f (image f S)` and `S`. -/
--- theorem SetTheory.Set.preimage_of_image {X Y:Set} (f:X → Y) (S: Set) (hS: S ⊆ X) : sorry := by sorry
+theorem SetTheory.Set.preimage_of_image {X Y:Set} (f:X → Y) (S: Set) (hS: S ⊆ X) : S ⊆ preimage f (image f S) := by
+  intro x hxS
+  rw [mem_preimage']
+  specialize hS x
+  simp [hxS] at hS
+  use ⟨ x, hS ⟩
+  rw [mem_image]
+  simp
+  use x
+  simp [hxS, hS]
 
 /- Exercise 3.4.2.  State and prove an assertion connecting `image f (preimage f U)` and `U`.
 Interestingly, it is not needed for U to be a subset of Y. -/
--- theorem SetTheory.Set.image_of_preimage {X Y:Set} (f:X → Y) (U: Set) : sorry := by sorry
+theorem SetTheory.Set.image_of_preimage {X Y:Set} (f:X → Y) (U: Set) : image f (preimage f U) ⊆ U := by
+  intro y h
+  rw [mem_image] at h
+  obtain ⟨ x, ⟨ h, hfx ⟩ ⟩ := h
+  rw [mem_preimage'] at h
+  obtain ⟨ x', ⟨ hxx', hfx' ⟩ ⟩ := h
+  rw [← hfx]
+  suffices h : x' = x
+  . simp [← h, hfx']
+  exact (coe_inj X x' x).mp hxx'
 
 /- Exercise 3.4.2.  State and prove an assertion connecting `preimage f (image f (preimage f U))` and `preimage f U`.
 Interestingly, it is not needed for U to be a subset of Y.-/
--- theorem SetTheory.Set.preimage_of_image_of_preimage {X Y:Set} (f:X → Y) (U: Set) : sorry := by sorry
+theorem SetTheory.Set.preimage_of_image_of_preimage {X Y:Set} (f:X → Y) (U: Set) : preimage f (image f (preimage f U)) = preimage f U := by
+  ext x
+  constructor <;> intro h
+  . rw [mem_preimage']
+    rw [mem_preimage'] at h
+    obtain ⟨ x', ⟨ hxx', h ⟩ ⟩ := h
+    use x', hxx'
+    rw [mem_image] at h
+    obtain ⟨ x'', ⟨ hx'', h ⟩ ⟩ := h
+    rw [← h]
+    rw [mem_preimage'] at hx''
+    obtain ⟨ x2, ⟨ hx2, h ⟩ ⟩ := hx''
+    suffices hx2' : x2 = x''
+    . simp [← hx2', h]
+    exact (coe_inj X x2 x'').mp hx2
+  . rw [mem_preimage'] at *
+    obtain ⟨ x2, ⟨ hx2, hfx2 ⟩ ⟩ := h
+    use x2, hx2
+    rw [mem_image]
+    use x2
+    constructor
+    . rw [mem_preimage']
+      use x2
+    . rfl
 
 /--
   Exercise 3.4.3.
