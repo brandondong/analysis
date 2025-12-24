@@ -672,40 +672,165 @@ lemma SetTheory.Set.mem_union_powerset_replace_iff {S : Set} {P : S.powerset →
 /-- Exercise 3.4.7 -/
 theorem SetTheory.Set.partial_functions {X Y:Set} :
     ∃ Z:Set, ∀ F:Object, F ∈ Z ↔ ∃ X' Y':Set, X' ⊆ X ∧ Y' ⊆ Y ∧ ∃ f: X' → Y', F = f := by
-  sorry
+  -- Powerset of X contains every single possible X' partial domain.
+  -- Map each subset domain to a set of possible functions for that domain.
+  -- Then finally union all these sets.
+  -- To generate the set of all possible functions for a domain, invoke powerset of Y and do another replace + union.
+  -- The replacement target is Y' ^ X' to get all functions.
+  set Z:Set := union ((powerset X).replace (P := fun x' o ↦ ∃ X':Set, X' ⊆ X ∧ x'.val = X' ∧ o =
+    union ((powerset Y).replace (P := fun y' o ↦ ∃ Y':Set, Y' ⊆ Y ∧ y'.val = Y' ∧ o = ((Y' ^ X'):Set)) (by aesop)))
+    (by aesop))
+  use Z
+  intro f
+  constructor <;> intro h
+  . unfold Z at h
+    rw [union_axiom] at h
+    obtain ⟨ F, ⟨ hf, hx ⟩ ⟩ := h
+    rw [replacement_axiom] at hx
+    obtain ⟨ _, ⟨ X', ⟨ hX', _, hx ⟩ ⟩ ⟩ := hx
+    simp at hx
+    rw [SetTheory.Set.ext_iff] at hx
+    replace hx := (hx f).mp hf
+    use X'
+    rw [union_axiom] at hx
+    obtain ⟨ F2, ⟨ hf2, hx ⟩ ⟩ := hx
+    rw [replacement_axiom] at hx
+    obtain ⟨ _, ⟨ Y', ⟨ hY', _, hx ⟩ ⟩ ⟩ := hx
+    simp at hx
+    use Y', hX', hY'
+    rw [SetTheory.Set.ext_iff] at hx
+    replace hx := (hx f).mp hf2
+    rw [powerset_axiom] at hx
+    obtain ⟨ f', hf' ⟩ := hx
+    use f'
+    exact id (Eq.symm hf')
+  . obtain ⟨ X', Y', hX', hY', f', hf ⟩ := h
+    unfold Z
+    rw [union_axiom]
+    -- Choose the set of all functions with X' domain.
+    set FX' := union ((powerset Y).replace (P := fun y' o ↦ ∃ Y':Set, Y' ⊆ Y ∧ y'.val = Y' ∧ o = ((Y' ^ X'):Set)) (by aesop))
+    use FX'
+    constructor
+    . rw [union_axiom]
+      use ((Y' ^ X'):Set), (by aesop)
+      rw [replacement_axiom]
+      use ⟨ Y', (by aesop) ⟩, Y'
+    . rw [replacement_axiom]
+      use ⟨ X', (by aesop) ⟩, X'
 
 /--
   Exercise 3.4.8.  The point of this exercise is to prove it without using the
   pairwise union operation `∪`.
 -/
 theorem SetTheory.Set.union_pair_exists (X Y:Set) : ∃ Z:Set, ∀ x, x ∈ Z ↔ (x ∈ X ∨ x ∈ Y) := by
-  sorry
+  use union {(X: Object), (Y: Object)}
+  intro a
+  constructor <;> intro h
+  . rw [union_axiom] at h
+    obtain ⟨ A, ha, hA ⟩ := h
+    simp at hA
+    obtain hA | hA := hA <;> rw [← hA] <;> tauto
+  . rw [union_axiom]
+    obtain h | h := h
+    . use X, h
+      simp
+    . use Y, h
+      simp
 
 /-- Exercise 3.4.9 -/
 theorem SetTheory.Set.iInter'_insensitive {I:Set} (β β':I) (A: I → Set) :
-    iInter' I β A = iInter' I β' A := by sorry
+    iInter' I β A = iInter' I β' A := by
+  ext a
+  rw [SetTheory.Set.specification_axiom'', SetTheory.Set.specification_axiom'']
+  constructor <;> intro h <;> obtain ⟨ ha, h ⟩ := h
+  . have hb := h β'
+    use hb
+  . have hb := h β
+    use hb
 
 /-- Exercise 3.4.10 -/
 theorem SetTheory.Set.union_iUnion {I J:Set} (A: (I ∪ J:Set) → Set) :
     iUnion I (fun α ↦ A ⟨ α.val, by simp [α.property]⟩)
     ∪ iUnion J (fun α ↦ A ⟨ α.val, by simp [α.property]⟩)
-    = iUnion (I ∪ J) A := by sorry
+    = iUnion (I ∪ J) A := by
+  ext a
+  constructor <;> intro h <;> rw [mem_union, mem_iUnion, mem_iUnion] at *
+  . obtain h | h := h <;> obtain ⟨ ij, ha ⟩ := h <;> use ⟨ ij.val, (by aesop) ⟩
+  . obtain ⟨ ⟨ ij, hij ⟩, ha ⟩ := h
+    simp at hij
+    obtain hi | hj := hij
+    . left
+      use ⟨ ij, hi ⟩
+    . right
+      use ⟨ ij, hj ⟩
 
 /-- Exercise 3.4.10 -/
-theorem SetTheory.Set.union_of_nonempty {I J:Set} (hI: I ≠ ∅) (hJ: J ≠ ∅) : I ∪ J ≠ ∅ := by sorry
+theorem SetTheory.Set.union_of_nonempty {I J:Set} (hI: I ≠ ∅) (_hJ: J ≠ ∅) : I ∪ J ≠ ∅ := by
+  have hi := nonempty_def hI
+  obtain ⟨ i, hi ⟩ := hi
+  simp [SetTheory.Set.ext_iff]
+  use i
+  simp [hi]
 
 /-- Exercise 3.4.10 -/
 theorem SetTheory.Set.inter_iInter {I J:Set} (hI: I ≠ ∅) (hJ: J ≠ ∅) (A: (I ∪ J:Set) → Set) :
     iInter I hI (fun α ↦ A ⟨ α.val, by simp [α.property]⟩)
     ∩ iInter J hJ (fun α ↦ A ⟨ α.val, by simp [α.property]⟩)
-    = iInter (I ∪ J) (union_of_nonempty hI hJ) A := by sorry
+    = iInter (I ∪ J) (union_of_nonempty hI hJ) A := by
+  ext a
+  constructor <;> intro h <;> rw [mem_inter, mem_iInter, mem_iInter] at *
+  . obtain ⟨ hi, hj ⟩ := h
+    intro ⟨ i, hij ⟩
+    simp at hij
+    obtain hij | hij := hij
+    . specialize hi ⟨ i, hij ⟩
+      exact hi
+    . specialize hj ⟨ i, hij ⟩
+      exact hj
+  . constructor <;> intro i <;> specialize h ⟨ i.val, (by aesop) ⟩ <;> exact h
 
 /-- Exercise 3.4.11 -/
 theorem SetTheory.Set.compl_iUnion {X I: Set} (hI: I ≠ ∅) (A: I → Set) :
-    X \ iUnion I A = iInter I hI (fun α ↦ X \ A α) := by sorry
+    X \ iUnion I A = iInter I hI (fun α ↦ X \ A α) := by
+  ext x
+  rw [mem_sdiff, mem_iUnion, mem_iInter]
+  constructor <;> intro h
+  . obtain ⟨ hx, h ⟩ := h
+    intro a
+    rw [mem_sdiff]
+    use hx
+    push_neg at h
+    apply h
+  . constructor
+    . have hi := nonempty_def hI
+      obtain ⟨ i, hi ⟩ := hi
+      specialize h ⟨ i, hi ⟩
+      simp at h
+      tauto
+    . push_neg
+      intro a
+      specialize h a
+      simp at h
+      tauto
 
 /-- Exercise 3.4.11 -/
 theorem SetTheory.Set.compl_iInter {X I: Set} (hI: I ≠ ∅) (A: I → Set) :
-    X \ iInter I hI A = iUnion I (fun α ↦ X \ A α) := by sorry
+    X \ iInter I hI A = iUnion I (fun α ↦ X \ A α) := by
+  ext x
+  rw [mem_sdiff, mem_iUnion, mem_iInter]
+  constructor <;> intro h
+  . obtain ⟨ hx, h ⟩ := h
+    push_neg at h
+    obtain ⟨ a, hx ⟩ := h
+    use a
+    simp
+    tauto
+  . obtain ⟨ a, hx ⟩ := h
+    simp at hx
+    constructor
+    . tauto
+    . push_neg
+      use a
+      tauto
 
 end Chapter3
