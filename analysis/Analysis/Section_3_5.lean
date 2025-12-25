@@ -267,27 +267,93 @@ noncomputable abbrev SetTheory.Set.prod_associator (X Y Z:Set) : (X ×ˢ Y) ×ˢ
   left_inv _ := by simp
   right_inv _ := by simp
 
+abbrev singleton_iProd_inv (i:Object) (X:Set) : X → iProd (fun _:({i}:Set) ↦ X) :=
+  fun x ↦ ⟨ tuple ((fun _:({i}:Set) ↦ x)), by {
+    rw [mem_iProd]
+    use fun _:({i}:Set) ↦ x
+  } ⟩
+
+theorem singleton_iProd_inv_surjective (i:Object) (X:Set) : Function.Surjective (singleton_iProd_inv i X) := by
+  intro ⟨ t, ht ⟩
+  rw [mem_iProd] at ht
+  obtain ⟨ f, hx ⟩ := ht
+  unfold singleton_iProd_inv
+  set x := f ⟨ i, (by simp) ⟩
+  use x
+  simp
+  rw [hx, tuple_inj]
+  ext x'
+  have hx' : x' = ⟨ i, (by simp) ⟩ := by aesop
+  simp [hx']
+  unfold x
+  simp
+
+theorem singleton_iProd_inv_injective (i:Object) (X:Set) : Function.Injective (singleton_iProd_inv i X) := by
+  intro x1 x2 h
+  unfold singleton_iProd_inv at h
+  simp at h
+  rw [funext_iff] at h
+  specialize h ⟨ i, (by simp) ⟩
+  simp at h
+  exact (coe_inj X x1 x2).mp h
+
 /--
   Example 3.5.10. I suspect most of the equivalences will require classical reasoning and only be
   defined non-computably, but would be happy to learn of counterexamples.
 -/
 noncomputable abbrev SetTheory.Set.singleton_iProd_equiv (i:Object) (X:Set) :
+  -- iProd is a set of all possible tuple functions taking an index (1 possibility) and outputting
+  -- some element in X (|X| possibilities).
     iProd (fun _:({i}:Set) ↦ X) ≃ X where
-  toFun := sorry
-  invFun := sorry
-  left_inv := sorry
-  right_inv := sorry
+  toFun := Function.surjInv (singleton_iProd_inv_surjective i X)
+  invFun := singleton_iProd_inv i X
+  left_inv := by {
+    change Function.RightInverse (Function.surjInv (singleton_iProd_inv_surjective i X)) (singleton_iProd_inv i X)
+    apply Function.rightInverse_surjInv
+  }
+  right_inv := by {
+    change Function.LeftInverse (Function.surjInv (singleton_iProd_inv_surjective i X)) (singleton_iProd_inv i X)
+    apply Function.leftInverse_surjInv
+    constructor
+    . exact singleton_iProd_inv_injective i X
+    . exact singleton_iProd_inv_surjective i X
+  }
 
 /-- Example 3.5.10 -/
 abbrev SetTheory.Set.empty_iProd_equiv (X: (∅:Set) → Set) : iProd X ≃ Unit where
-  toFun := sorry
-  invFun := sorry
-  left_inv := sorry
-  right_inv := sorry
+  -- iProd is a set of all possible tuple functions taking an element of the empty set (empty domain)
+  -- and so there is only one possible such function.
+  toFun := fun x ↦ ()
+  -- t ∈ iProd X ↔ ∃ x: ∀ i, X i, t = tuple x
+  invFun := fun _u ↦ ⟨ tuple ((fun e ↦ ⟨ 1, by {
+    have contra := e.2
+    simp at contra
+  } ⟩): ∀ i, X i), by {
+    rw [mem_iProd]
+    use (fun e ↦ ⟨ 1, by {
+      have contra := e.2
+      simp at contra
+    } ⟩)
+  } ⟩
+  left_inv := by {
+    intro ⟨ t, ht ⟩
+    rw [mem_iProd] at ht
+    obtain ⟨ f, hf ⟩ := ht
+    simp [hf]
+    ext e
+    have contra := e.2
+    simp at contra
+  }
+  right_inv := by {
+    intro u
+    simp
+  }
 
 /-- Example 3.5.10 -/
 noncomputable abbrev SetTheory.Set.iProd_of_const_equiv (I:Set) (X: Set) :
     iProd (fun _:I ↦ X) ≃ (I → X) where
+  -- iProd is a set of all possible tuple functions taking an element of I
+  -- and outputting some element in X
   toFun := sorry
   invFun := sorry
   left_inv := sorry
