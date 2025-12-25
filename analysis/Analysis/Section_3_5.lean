@@ -349,31 +349,219 @@ abbrev SetTheory.Set.empty_iProd_equiv (X: (∅:Set) → Set) : iProd X ≃ Unit
     simp
   }
 
+abbrev iProd_of_const_inv (I:Set) (X: Set) : (I → X) → (iProd (fun _:I ↦ X)) :=
+  fun f ↦ ⟨ tuple f, by {
+    rw [mem_iProd]
+    use f
+  } ⟩
+
+theorem iProd_of_const_inv_surjective (I:Set) (X: Set) : Function.Surjective (iProd_of_const_inv I X) := by
+  intro ⟨ t, ht ⟩
+  rw [mem_iProd] at ht
+  unfold iProd_of_const_inv
+  obtain ⟨ f, hf ⟩ := ht
+  use f
+  simp [hf]
+
+theorem iProd_of_const_inv_injective (I:Set) (X: Set) : Function.Injective (iProd_of_const_inv I X) := by
+  intro f1 f2 h
+  unfold iProd_of_const_inv at h
+  replace h : tuple f1 = tuple f2
+  . exact congrArg Subtype.val h
+  exact (tuple_inj f1 f2).mp h
+
 /-- Example 3.5.10 -/
 noncomputable abbrev SetTheory.Set.iProd_of_const_equiv (I:Set) (X: Set) :
     iProd (fun _:I ↦ X) ≃ (I → X) where
   -- iProd is a set of all possible tuple functions taking an element of I
   -- and outputting some element in X
-  toFun := sorry
-  invFun := sorry
-  left_inv := sorry
-  right_inv := sorry
+  toFun := Function.surjInv (iProd_of_const_inv_surjective I X)
+  invFun := iProd_of_const_inv I X
+  left_inv := by {
+    change Function.RightInverse (Function.surjInv (iProd_of_const_inv_surjective I X)) (iProd_of_const_inv I X)
+    apply Function.rightInverse_surjInv
+  }
+  right_inv := by {
+    change Function.LeftInverse (Function.surjInv (iProd_of_const_inv_surjective I X)) (iProd_of_const_inv I X)
+    apply Function.leftInverse_surjInv
+    constructor
+    . exact iProd_of_const_inv_injective I X
+    . exact iProd_of_const_inv_surjective I X
+  }
+
+noncomputable abbrev pair_iProd_equiv_prod (X: ({0,1}:Set) → Set) : (iProd X) → (X ⟨ 0, by simp ⟩) ×ˢ (X ⟨ 1, by simp ⟩) :=
+  fun t ↦ ⟨ (⟨ ((mem_iProd _).mp t.property).choose ⟨ 0, by simp ⟩, ((mem_iProd _).mp t.property).choose ⟨ 1, by simp ⟩ ⟩:OrderedPair), by {
+    rw [mem_cartesian]
+    obtain ⟨ t, ht ⟩ := t
+    set t_mem := ((mem_iProd _).mp ht)
+    have ht_choose := t_mem.choose_spec
+    rw [mem_iProd] at ht
+    obtain ⟨ f, hf ⟩ := ht
+    rw [ht_choose, tuple_inj] at hf
+    rw [hf]
+    use f ⟨ 0, by simp ⟩, f ⟨ 1, by simp ⟩
+  } ⟩
+
+noncomputable abbrev triple_iProd_equiv_prod (X: ({0,1,2}:Set) → Set) : (iProd X) → (X ⟨ 0, by simp ⟩) ×ˢ (X ⟨ 1, by simp ⟩) ×ˢ (X ⟨ 2, by simp ⟩) :=
+  fun t ↦ ⟨ (⟨ ((mem_iProd _).mp t.property).choose ⟨ 0, by simp ⟩,
+    (⟨ ((mem_iProd _).mp t.property).choose ⟨ 1, by simp ⟩, ((mem_iProd _).mp t.property).choose ⟨ 2, by simp ⟩ ⟩:OrderedPair) ⟩:OrderedPair), by {
+    rw [mem_cartesian]
+    obtain ⟨ t, ht ⟩ := t
+    set t_mem := ((mem_iProd _).mp ht)
+    have ht_choose := t_mem.choose_spec
+    rw [mem_iProd] at ht
+    obtain ⟨ f, hf ⟩ := ht
+    rw [ht_choose, tuple_inj] at hf
+    rw [hf]
+    use f ⟨ 0, by simp ⟩
+    use ⟨ (⟨ f ⟨ 1, by simp ⟩, f ⟨ 2, by simp ⟩ ⟩:OrderedPair), by {
+      rw [mem_cartesian]
+      use f ⟨ 1, by simp ⟩, f ⟨ 2, by simp ⟩
+    } ⟩
+  } ⟩
+
+open Classical in
+theorem pair_iProd_equiv_prod_surjective (X: ({0,1}:Set) → Set) : Function.Surjective (pair_iProd_equiv_prod X) := by
+  intro ⟨ p, hp ⟩
+  rw [mem_cartesian] at hp
+  obtain ⟨ x0, x1, hx ⟩ := hp
+  -- Use the tuple that maps 0 -> x0 and 1 -> x1.
+  set f : ∀ i, X i := fun i ↦ if hi : i = ⟨ 0, by simp ⟩ then ⟨ x0, by aesop ⟩ else ⟨ x1, by {
+    suffices hi2 : i = ⟨ 1, by simp ⟩
+    . simp [hi2, x1.2]
+    aesop
+  } ⟩
+  have htf : tuple f ∈ iProd X
+  . rw [mem_iProd]
+    use f
+  use ⟨ tuple f, htf ⟩
+  unfold pair_iProd_equiv_prod
+  simp [hx]
+  set c := pair_iProd_equiv_prod._proof_3 X ⟨tuple f, htf⟩
+  have c_choose := c.choose_spec
+  rw [tuple_inj] at c_choose
+  simp [← c_choose]
+  unfold f
+  simp
+
+open Classical in
+theorem triple_iProd_equiv_prod_surjective (X: ({0,1,2}:Set) → Set) : Function.Surjective (triple_iProd_equiv_prod X) := by
+  intro ⟨ p, hp ⟩
+  rw [mem_cartesian] at hp
+  obtain ⟨ x0, ⟨ p2, hp2 ⟩, hx ⟩ := hp
+  rw [mem_cartesian] at hp2
+  obtain ⟨ x1, x2, hx2 ⟩ := hp2
+  -- Use the tuple that maps 0 -> x0, 1 -> x1, and 2 -> x2.
+  set f : ∀ i, X i := fun i ↦ if hi0 : i = ⟨ 0, by simp ⟩ then ⟨ x0, by aesop ⟩ else
+    if hi1 : i = ⟨ 1, by simp ⟩ then ⟨ x1, by aesop ⟩ else
+    if hi2 : i = ⟨ 2, by simp ⟩ then ⟨ x2, by aesop ⟩ else ⟨ 1, by {
+      have hi := i.2
+      simp at hi
+      push_neg at hi0
+      push_neg at hi1
+      push_neg at hi2
+      aesop
+    } ⟩
+  have htf : tuple f ∈ iProd X
+  . rw [mem_iProd]
+    use f
+  use ⟨ tuple f, htf ⟩
+  unfold triple_iProd_equiv_prod
+  set c := triple_iProd_equiv_prod._proof_4 X ⟨tuple f, htf⟩
+  have c_choose := c.choose_spec
+  rw [tuple_inj] at c_choose
+  simp [← c_choose]
+  rw [hx]
+  unfold f
+  simp [hx2]
+
+theorem pair_iProd_equiv_prod_injective (X: ({0,1}:Set) → Set) : Function.Injective (pair_iProd_equiv_prod X) := by
+  intro ⟨ t1, ht1 ⟩ ⟨ t2, ht2 ⟩ h
+  rw [mem_iProd] at *
+  obtain ⟨ f1, hf1 ⟩ := ht1
+  obtain ⟨ f2, hf2 ⟩ := ht2
+  simp
+  rw [hf1, hf2, tuple_inj]
+  unfold pair_iProd_equiv_prod at h
+  simp at h
+  obtain ⟨ h0, h1 ⟩ := h
+  set f1_choose := pair_iProd_equiv_prod._proof_3 X ⟨t1, ht1⟩
+  set f2_choose := pair_iProd_equiv_prod._proof_3 X ⟨t2, ht2⟩
+  have hf1c := f1_choose.choose_spec
+  have hf2c := f2_choose.choose_spec
+  simp at hf1c
+  simp at hf2c
+  rw [hf1c] at hf1
+  rw [hf2c] at hf2
+  rw [tuple_inj] at *
+  rw [hf1, hf2] at *
+  ext i
+  have hi := i.2
+  simp at hi
+  set zero: ({0, 1}:Set) := ⟨ 0, by simp ⟩
+  set one: ({0, 1}:Set) := ⟨ 1, by simp ⟩
+  change i.val = zero.val ∨ i.val = one.val at hi
+  rw [coe_inj, coe_inj] at hi
+  obtain hi | hi := hi <;> rwa [hi]
+
+theorem triple_iProd_equiv_prod_injective (X: ({0,1,2}:Set) → Set) : Function.Injective (triple_iProd_equiv_prod X) := by
+  intro ⟨ t1, ht1 ⟩ ⟨ t2, ht2 ⟩ h
+  rw [mem_iProd] at *
+  obtain ⟨ f1, hf1 ⟩ := ht1
+  obtain ⟨ f2, hf2 ⟩ := ht2
+  simp
+  rw [hf1, hf2, tuple_inj]
+  unfold triple_iProd_equiv_prod at h
+  set f1_choose := triple_iProd_equiv_prod._proof_4 X ⟨t1, ht1⟩
+  set f2_choose := triple_iProd_equiv_prod._proof_4 X ⟨t2, ht2⟩
+  have hf1c := f1_choose.choose_spec
+  have hf2c := f2_choose.choose_spec
+  simp at hf1c
+  simp at hf2c
+  rw [hf1c] at hf1
+  rw [hf2c] at hf2
+  rw [tuple_inj] at *
+  simp at h
+  obtain ⟨ h0, h1, h2 ⟩ := h
+  rw [hf1, hf2] at *
+  ext i
+  have hi := i.2
+  simp at hi
+  set zero: ({0, 1, 2}:Set) := ⟨ 0, by simp ⟩
+  set one: ({0, 1, 2}:Set) := ⟨ 1, by simp ⟩
+  set two: ({0, 1, 2}:Set) := ⟨ 2, by simp ⟩
+  change i.val = zero.val ∨ i.val = one.val ∨ i.val = two.val at hi
+  rw [coe_inj, coe_inj, coe_inj] at hi
+  obtain hi | hi | hi := hi <;> rwa [hi]
 
 /-- Example 3.5.10 -/
 noncomputable abbrev SetTheory.Set.iProd_equiv_prod (X: ({0,1}:Set) → Set) :
     iProd X ≃ (X ⟨ 0, by simp ⟩) ×ˢ (X ⟨ 1, by simp ⟩) where
-  toFun := sorry
-  invFun := sorry
-  left_inv := sorry
-  right_inv := sorry
+  -- iProd is a set of all possible tuple functions taking an element of {0,1}
+  -- and outputting some element in X0/X1
+  toFun := pair_iProd_equiv_prod X
+  invFun := Function.surjInv (pair_iProd_equiv_prod_surjective X)
+  left_inv := by {
+    apply Function.leftInverse_surjInv
+    constructor
+    . exact pair_iProd_equiv_prod_injective X
+    . exact pair_iProd_equiv_prod_surjective X
+  }
+  right_inv := by apply Function.rightInverse_surjInv
 
 /-- Example 3.5.10 -/
 noncomputable abbrev SetTheory.Set.iProd_equiv_prod_triple (X: ({0,1,2}:Set) → Set) :
     iProd X ≃ (X ⟨ 0, by simp ⟩) ×ˢ (X ⟨ 1, by simp ⟩) ×ˢ (X ⟨ 2, by simp ⟩) where
-  toFun := sorry
-  invFun := sorry
-  left_inv := sorry
-  right_inv := sorry
+  -- Same as above but worse...
+  toFun := triple_iProd_equiv_prod X
+  invFun := Function.surjInv (triple_iProd_equiv_prod_surjective X)
+  left_inv := by {
+    apply Function.leftInverse_surjInv
+    constructor
+    . exact triple_iProd_equiv_prod_injective X
+    . exact triple_iProd_equiv_prod_surjective X
+  }
+  right_inv := by apply Function.rightInverse_surjInv
 
 /-- Connections with Mathlib's `Set.pi` -/
 noncomputable abbrev SetTheory.Set.iProd_equiv_pi (I:Set) (X: I → Set) :
