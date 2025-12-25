@@ -52,12 +52,59 @@ theorem OrderedPair.eq (x y x' y' : Object) :
 /-- Helper lemma for Exercise 3.5.1 -/
 lemma SetTheory.Set.pair_eq_singleton_iff {a b c: Object} : {a, b} = ({c}: Set) ↔
     a = c ∧ b = c := by
-  sorry
+  rw [SetTheory.Set.ext_iff]
+  constructor <;> intro h
+  . have ha := h a
+    have hb := h b
+    simp at *
+    tauto
+  . intro x
+    simp [h]
 
 /-- Exercise 3.5.1, first part -/
 def OrderedPair.toObject : OrderedPair ↪ Object where
   toFun p := ({ (({p.fst}:Set):Object), (({p.fst, p.snd}:Set):Object) }:Set)
-  inj' := by sorry
+  inj' := by {
+    intro p1 p2
+    simp
+    intro h
+    rw [SetTheory.Set.ext_iff] at h
+    rw [OrderedPair.eq]
+    have hfst : p1.fst = p2.fst
+    . have hp1 := h (({p1.fst}:Set):Object)
+      simp at hp1
+      obtain hp1 | hp1 := hp1
+      . rw [SetTheory.Set.ext_iff] at hp1
+        specialize hp1 p1.fst
+        simp at hp1
+        exact hp1
+      . symm at hp1
+        simp [pair_eq_singleton_iff] at hp1
+        tauto
+    use hfst
+    have hp1_snd := h (({p1.fst, p1.snd}:Set):Object)
+    simp at hp1_snd
+    obtain hp1 | hp1 := hp1_snd
+    . rw [pair_eq_singleton_iff] at hp1
+      obtain ⟨ _, hp1 ⟩ := hp1
+      specialize h (({p2.fst, p2.snd}:Set):Object)
+      simp at h
+      rw [← hp1] at hfst
+      rw [hfst] at h
+      simp [pair_eq_singleton_iff] at h
+      tauto
+    . rw [SetTheory.Set.ext_iff] at hp1
+      specialize hp1 p1.snd
+      simp at hp1
+      obtain hp1 | hp1 := hp1
+      . rw [← hp1] at hfst
+        specialize h (({p2.fst, p2.snd}:Set):Object)
+        simp at h
+        rw [hfst] at h
+        simp [pair_eq_singleton_iff] at h
+        tauto
+      . exact hp1
+  }
 
 instance OrderedPair.inst_coeObject : Coe OrderedPair Object where
   coe := toObject
@@ -152,10 +199,16 @@ example : ({1, 2}: Set) ×ˢ ({3, 4, 5}: Set) = ({
 
 /-- Example 3.5.5 / Exercise 3.6.5. There is a bijection between `X ×ˢ Y` and `Y ×ˢ X`. -/
 noncomputable abbrev SetTheory.Set.prod_commutator (X Y:Set) : X ×ˢ Y ≃ Y ×ˢ X where
-  toFun := sorry
-  invFun := sorry
-  left_inv := sorry
-  right_inv := sorry
+  toFun := fun p ↦ mk_cartesian (snd p) (fst p)
+  invFun := fun p ↦ mk_cartesian (snd p) (fst p)
+  left_inv := by {
+    intro p
+    simp
+  }
+  right_inv := by {
+    intro p
+    simp
+  }
 
 /-- Example 3.5.5. A function of two variables can be thought of as a function of a pair. -/
 noncomputable abbrev SetTheory.Set.curry_equiv {X Y Z:Set} : (X → Y → Z) ≃ (X ×ˢ Y → Z) where
@@ -188,7 +241,24 @@ theorem SetTheory.Set.tuple_mem_iProd {I: Set} {X: I → Set} (x: ∀ i, X i) :
 
 @[simp]
 theorem SetTheory.Set.tuple_inj {I:Set} {X: I → Set} (x y: ∀ i, X i) :
-    tuple x = tuple y ↔ x = y := by sorry
+    tuple x = tuple y ↔ x = y := by
+  -- tuple takes a function from Xi index which outputs some element in Xi.
+  -- tuple is that same function but with a proof that the output is in iUnion I X
+  -- iProd is a set of all such possible tuple functions.
+  constructor <;> intro h
+  . ext i
+    unfold tuple at h
+    simp at h
+    rw [funext_iff] at h
+    specialize h i
+    simp at h
+    exact h
+  . unfold tuple
+    simp
+    ext i
+    rw [funext_iff] at h
+    specialize h i
+    simp [h]
 
 /-- Example 3.5.8. There is a bijection between `(X ×ˢ Y) ×ˢ Z` and `X ×ˢ (Y ×ˢ Z)`. -/
 noncomputable abbrev SetTheory.Set.prod_associator (X Y Z:Set) : (X ×ˢ Y) ×ˢ Z ≃ X ×ˢ (Y ×ˢ Z) where
