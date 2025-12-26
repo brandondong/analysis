@@ -686,10 +686,84 @@ theorem SetTheory.Set.finite_choice {n:ℕ} {X: Fin n → Set} (h: ∀ i, X i �
       ⟨x' i', by grind⟩
   exact nonempty_of_inhabited (tuple_mem_iProd x)
 
+#check SetTheory.Set.axiom_of_regularity
+
 /-- Exercise 3.5.1, second part (requires axiom of regularity) -/
 abbrev OrderedPair.toObject' : OrderedPair ↪ Object where
   toFun p := ({ p.fst, (({p.fst, p.snd}:Set):Object) }:Set)
-  inj' := by sorry
+  inj' := by {
+    intro p1 p2 h
+    simp at h
+    rw [OrderedPair.eq]
+    simp [SetTheory.Set.ext_iff] at h
+    -- For fst, think about how the bijection forms.
+    -- There is the happy case they line up.
+    -- Otherwise p1.fst = {p2.fst, p2.snd} and p2.fst = {p1.fst, p1.snd}.
+    -- This is a contradiction to be shown by axiom of regularity.
+    -- Consider the set {p1.fst, p2.fst}. Either choice breaks it.
+    have helper : p1.fst = ({p2.fst, p2.snd}:Set) → p2.fst = ({p1.fst, p1.snd}:Set) → False
+    . intro hp1fst hp2fst
+      have hr : ({p1.fst, p2.fst}:Set) ≠ ∅
+      . simp
+        rw [SetTheory.Set.ext_iff]
+        simp
+        use p2.fst
+        tauto
+      replace hr := SetTheory.Set.axiom_of_regularity hr
+      obtain ⟨ ⟨ x, hx ⟩, hr ⟩ := hr
+      simp at hx
+      obtain hx | hx := hx
+      . specialize hr ({p2.fst, p2.snd}:Set)
+        simp at hr
+        rw [hx] at hr
+        specialize hr hp1fst
+        rw [disjoint_iff, SetTheory.Set.ext_iff] at hr
+        specialize hr p2.fst
+        simp at hr
+      . specialize hr ({p1.fst, p1.snd}:Set)
+        simp at hr
+        rw [hx] at hr
+        specialize hr hp2fst
+        rw [disjoint_iff, SetTheory.Set.ext_iff] at hr
+        specialize hr p1.fst
+        simp at hr
+    have hp1fst := h p1.fst
+    have hp2fst := h p2.fst
+    have hp1snd := h ({p1.fst, p1.snd}:Set)
+    have hp2snd := h ({p2.fst, p2.snd}:Set)
+    simp at *
+    have hfst : p1.fst = p2.fst
+    . obtain hp1fst | hp1fst := hp1fst
+      . exact hp1fst
+      obtain hp2fst | hp2fst := hp2fst
+      . exact hp2fst.symm
+      have := helper hp1fst hp2fst
+      contradiction
+    use hfst
+    clear hp1fst hp2fst h
+    -- For snd, if they line up as {p1.fst, p1.snd} = {p2.fst, p2.snd},
+    -- we know p1.fst = p2.fst and that is enough to get the other equality.
+    have hsnd : ({p1.fst, p1.snd}:Set) = {p2.fst, p2.snd} → p1.snd = p2.snd
+    . intro h
+      rw [SetTheory.Set.ext_iff] at h
+      simp at h
+      have h1 := h p1.snd
+      simp at h1
+      obtain h1 | h1 := Or.symm h1
+      . exact h1
+      have h2 := h p2.snd
+      simp at h2
+      obtain h2 | h2 := Or.symm h2
+      . exact h2.symm
+      rw [h1, ← hfst, h2]
+    obtain hp1snd | hp1snd := Or.symm hp1snd
+    . exact hsnd hp1snd
+    obtain hp2snd | hp2snd := Or.symm hp2snd
+    . exact hsnd hp2snd.symm
+    -- Otherwise, we reach the contradictory case again.
+    have := helper hp2snd.symm hp1snd.symm
+    contradiction
+  }
 
 /-- An alternate definition of a tuple, used in Exercise 3.5.2 -/
 structure SetTheory.Set.Tuple (n:ℕ) where
