@@ -785,14 +785,94 @@ lemma SetTheory.Set.Tuple.ext {n:ℕ} {t t':Tuple n}
 
 /-- Exercise 3.5.2 -/
 theorem SetTheory.Set.Tuple.eq {n:ℕ} (t t':Tuple n) :
-    t = t' ↔ ∀ n : Fin n, ((t.x n):Object) = ((t'.x n):Object) := by sorry
+    t = t' ↔ ∀ n : Fin n, ((t.x n):Object) = ((t'.x n):Object) := by
+  constructor <;> intro h
+  . rw [Tuple.ext_iff] at h
+    exact h.2
+  . suffices hX : t.X = t'.X
+    . exact ext hX h
+    -- To prove the sets are equivalent, each element is mapped by some Fin n.
+    -- Then we can just apply the opposite function to that same element.
+    ext x
+    constructor <;> intro hx
+    . have hsurj := t.surj ⟨ x, hx ⟩
+      obtain ⟨ i, hi ⟩ := hsurj
+      specialize h i
+      replace hi := congrArg Subtype.val hi
+      simp at hi
+      rw [← hi, h]
+      exact Subtype.property _
+    . have hsurj := t'.surj ⟨ x, hx ⟩
+      obtain ⟨ i, hi ⟩ := hsurj
+      specialize h i
+      replace hi := congrArg Subtype.val hi
+      simp at hi
+      rw [← hi, ← h]
+      exact Subtype.property _
+
+abbrev tuple_equiv (n:ℕ) (X: SetTheory.Set.Fin n → Set) : { t:Tuple n // ∀ i, (t.x i:Object) ∈ X i } → (iProd X) :=
+  fun t ↦ ⟨ tuple (fun i:SetTheory.Set.Fin n ↦ (⟨ t.val.x i, by exact t.2 i ⟩:X i) ), by {
+    rw [mem_iProd]
+    use (fun i:SetTheory.Set.Fin n ↦ (⟨ t.val.x i, by exact t.2 i ⟩:X i) )
+  } ⟩
+
+#check SetTheory.Set.image
+-- X.replace (P := fun x y ↦ f x = y ∧ x.val ∈ S) (by simp_all)
+
+theorem tuple_equiv_surjective (n:ℕ) (X: SetTheory.Set.Fin n → Set) : Function.Surjective (tuple_equiv n X) := by
+  intro ⟨ t, ht ⟩
+  rw [mem_iProd] at ht
+  obtain ⟨ f, hf ⟩ := ht
+  -- Define some Tuple whose function maps to everything f hits.
+  use ⟨ ⟨ (SetTheory.Set.Fin n).replace (P := fun x y ↦ f x = y) (by simp_all), -- Image set doesn't work...
+    fun i ↦ ⟨ f i, by {
+      rw [replacement_axiom]
+      use i
+    } ⟩,
+    by {
+      intro ⟨ x, hx ⟩
+      rw [replacement_axiom] at hx
+      obtain ⟨ i, hi ⟩ := hx
+      use i
+      simp [hi]
+    } ⟩,
+    by {
+      intro i
+      simp
+      exact Subtype.property _
+    } ⟩
+  unfold tuple_equiv
+  simp [hf]
+
+theorem tuple_equiv_injective (n:ℕ) (X: SetTheory.Set.Fin n → Set) : Function.Injective (tuple_equiv n X) := by
+  intro ⟨ t1, ht1 ⟩ ⟨ t2, ht2 ⟩ h
+  simp
+  rw [SetTheory.Set.Tuple.eq]
+  intro i
+  unfold tuple_equiv at h
+  simp at h
+  rw [funext_iff] at h
+  specialize h i
+  simp at h
+  exact h
 
 noncomputable abbrev SetTheory.Set.iProd_equiv_tuples (n:ℕ) (X: Fin n → Set) :
     iProd X ≃ { t:Tuple n // ∀ i, (t.x i:Object) ∈ X i } where
-  toFun := sorry
-  invFun := sorry
-  left_inv := sorry
-  right_inv := sorry
+  -- t ∈ iProd X ↔ ∃ x: ∀ i, X i, t = tuple x
+  -- Given a Tuple, construct a tuple function that just calls the Tuple x function.
+  toFun := Function.surjInv (tuple_equiv_surjective n X)
+  invFun := tuple_equiv n X
+  left_inv := by {
+    change Function.RightInverse (Function.surjInv (tuple_equiv_surjective n X)) (tuple_equiv n X)
+    apply Function.rightInverse_surjInv
+  }
+  right_inv := by {
+    change Function.LeftInverse (Function.surjInv (tuple_equiv_surjective n X)) (tuple_equiv n X)
+    apply Function.leftInverse_surjInv
+    constructor
+    . exact tuple_equiv_injective n X
+    . exact tuple_equiv_surjective n X
+  }
 
 /--
   Exercise 3.5.3. The spirit here is to avoid direct rewrites (which make all of these claims
