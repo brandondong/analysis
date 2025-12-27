@@ -1214,16 +1214,118 @@ theorem SetTheory.Set.is_graph {X Y G:Set} (hG: G ⊆ X ×ˢ Y)
     have h2 := hy (f x) (by simp [hf])
     rw [h1, h2]
 
+-- ∃ (Z: Set), ∀ x, x ∈ Z ↔ ∃ Y:Set, x = Y ∧ Y ⊆ X
+#check SetTheory.Set.exists_powerset
+
 /--
   Exercise 3.5.11. This trivially follows from `SetTheory.Set.powerset_axiom`, but the
   exercise is to derive it from `SetTheory.Set.exists_powerset` instead.
 -/
 theorem SetTheory.Set.powerset_axiom' (X Y:Set) :
-    ∃! S:Set, ∀(F:Object), F ∈ S ↔ ∃ f: Y → X, f = F := sorry
+    ∃! S:Set, ∀(F:Object), F ∈ S ↔ ∃ f: Y → X, f = F := by
+  -- Y*X = {(y1,x1), (y2,x2)...} (all possible y -> x mappings)
+  -- Taking the powerset results in each element containing some subset of these mappings.
+  -- This is only a valid function if each y has exactly one element.
+  -- So take powerset of Y*X, then replace with a function that satisfies graph equality.
+  set S:Set := (exists_powerset (Y ×ˢ X)).choose.replace
+    (P := fun S' F ↦ ∃ f: Y → X, f = F ∧ S'.val = graph f) (by {
+    -- Prove S' can't have multiple satisfying F's.
+    -- If f1/f2 satisfies, then S' = graph f1/f2 and then we can use injectivity.
+    intro S'
+    intro F1 F2 ⟨ hF1, hF2 ⟩
+    simp at hF1 hF2
+    obtain ⟨ f1, hf1, hf1S ⟩ := hF1
+    obtain ⟨ f2, hf2, hf2S ⟩ := hF2
+    rw [hf1S] at hf2S
+    simp [graph_inj] at hf2S
+    rw [← hf1, ← hf2, hf2S]
+  })
+  have goal : ∀(F:Object), F ∈ S ↔ ∃ f: Y → X, f = F
+  . intro F
+    unfold S
+    set c := exists_powerset (Y ×ˢ X)
+    have hc := c.choose_spec
+    constructor <;> intro h
+    . rw [replacement_axiom] at h
+      tauto
+    . obtain ⟨ f, hf ⟩ := h
+      rw [replacement_axiom]
+      use ⟨ graph f, by {
+        specialize hc (graph f)
+        rw [hc]
+        use graph f, rfl
+        unfold graph
+        exact specify_subset fun p ↦ f (fst p) = snd p
+      } ⟩
+      use f
+  apply ExistsUnique.intro S
+  . exact goal
+  . intro S' hS'
+    ext f
+    specialize goal f
+    specialize hS' f
+    tauto
 
 /-- Exercise 3.5.12, with errata from web site incorporated -/
 theorem SetTheory.Set.recursion (X: Set) (f: nat → X → X) (c:X) :
-    ∃! a: nat → X, a 0 = c ∧ ∀ n, a (n + 1:ℕ) = f n (a n) := by sorry
+    -- Prove for Fin n for all n.
+    -- Then define a function that instantiates the exist with a choose.
+    ∃! a: nat → X, a 0 = c ∧ ∀ n, a (n + 1:ℕ) = f n (a n) := by
+  have sub : ∀ n': ℕ, ∃ a: Fin (n'+1) → X, a ⟨ 0, by {
+    rw [mem_Fin]
+    use 0
+    simp
+    rfl
+  } ⟩ = c ∧ ∀ n, (hi: n < n') → a ⟨ (n + 1:ℕ), by {
+    rw [mem_Fin]
+    use n+1
+    simp [hi]
+  } ⟩ = f n (a ⟨ n, by {
+    rw [mem_Fin]
+    use n
+    simp
+    linarith
+  } ⟩)
+  . intro n
+    induction' n with i IH
+    . use fun _ ↦ c
+      simp
+    obtain ⟨ a, ha, ha2 ⟩ := IH
+    use fun n ↦ if hn: n ≤ i then a (⟨ n, sorry ⟩) else f sorry (a (⟨ sorry, sorry ⟩))
+    sorry
+  set a: nat → X := fun n ↦ (sub (n+5)).choose ⟨ n, by {
+    rw [mem_Fin]
+    use n
+    simp
+    linarith
+  } ⟩
+  have ha : a 0 = c ∧ ∀ (n : ℕ), a ↑(n + 1) = f (↑n) (a ↑n)
+  . constructor
+    . unfold a
+      set c := sub (nat_equiv.symm 0 + 5)
+      have hc := c.choose_spec
+      tauto
+    intro n
+    unfold a
+    set c := sub (nat_equiv.symm ↑(n + 1) + 5)
+    set d := sub (nat_equiv.symm ↑(n) + 5)
+    have hc := c.choose_spec.2
+    have hc2 := hc n (by sorry)
+    simp [hc2]
+    have helper : ∀ n', (hn: n' ≤ n) → c.choose ⟨ n', by sorry ⟩ = d.choose ⟨ n', by sorry ⟩
+    . intro n'
+      induction' n' with i hi
+      . sorry
+      sorry
+    specialize helper n (by linarith)
+    rw [helper]
+  apply ExistsUnique.intro a
+  . exact ha
+  . intro a' ha'
+    ext n
+    induction' hx1: (n:ℕ) with i hi generalizing n
+    . sorry
+    sorry
 
 /-- Exercise 3.5.13 -/
 theorem SetTheory.Set.nat_unique (nat':Set) (zero:nat') (succ:nat' → nat')
@@ -1233,14 +1335,32 @@ theorem SetTheory.Set.nat_unique (nat':Set) (zero:nat') (succ:nat' → nat')
     ∧ ∀ (n:nat) (n':nat'), f n = n' ↔ f (n+1:ℕ) = succ n' := by
   have nat_coe_eq {m:nat} {n} : (m:ℕ) = n → m = n := by aesop
   have nat_coe_eq_zero {m:nat} : (m:ℕ) = 0 → m = 0 := nat_coe_eq
-  obtain ⟨f, hf⟩ := recursion nat' sorry sorry
+  obtain ⟨f, ⟨ hf, hf2 ⟩, hf3⟩ := recursion nat' (fun _ n ↦ succ n) zero
   apply existsUnique_of_exists_of_unique
   · use f
     constructor
     · constructor
       · intro x1 x2 heq
         induction' hx1: (x1:ℕ) with i ih generalizing x1 x2
-        · sorry
+        · have hx1 := nat_coe_eq_zero hx1
+          rw [hx1]
+          rw [hx1, hf] at heq
+          match hn:(x2:ℕ) with
+          | 0 => {
+            have hn := nat_coe_eq_zero hn
+            simp [hn]
+          }
+          | n + 1 => {
+            specialize hf2 n
+            have : ↑(n + 1) = x2
+            . exact
+              Eq.symm
+                ((fun [SetTheory] n m ↦ (nat_equiv_symm_inj n m).mp) x2 (↑(n + 1))
+                  (congrArg (⇑nat_equiv.symm) (nat_coe_eq hn)))
+            rw [this, ← heq] at hf2
+            specialize succ_ne (f ↑n)
+            simp [hf2] at succ_ne
+          }
         sorry
       sorry
     sorry
