@@ -70,8 +70,8 @@ theorem SetTheory.Set.Example_3_6_3 : EqualCard nat (nat.specify (fun x ↦ Even
     obtain ⟨ x, hx ⟩ := hy2
     use x
     simp
-    symm at hx
-    aesop
+    rw [← hx]
+    simp
 
 @[refl]
 theorem SetTheory.Set.EqualCard.refl (X:Set) : EqualCard X X := by
@@ -116,7 +116,50 @@ theorem SetTheory.Set.has_card_iff (X:Set) (n:ℕ) :
 
 /-- Remark 3.6.6 -/
 theorem SetTheory.Set.Remark_3_6_6 (n:ℕ) :
-    (nat.specify (fun x ↦ 1 ≤ (x:ℕ) ∧ (x:ℕ) ≤ n)).has_card n := by sorry
+    (nat.specify (fun x ↦ 1 ≤ (x:ℕ) ∧ (x:ℕ) ≤ n)).has_card n := by
+  rw [has_card_iff]
+  -- Want to go the opposite way (Fin n -> [1, n] so we can use x+1).
+  -- Proving this function is bijective is sufficient.
+  change EqualCard _ _
+  apply EqualCard.symm
+  unfold EqualCard
+  set f := fun i:Fin n ↦ (⟨ (i:ℕ) + (1:ℕ), by {
+    rw [specification_axiom'']
+    use Subtype.property _
+    obtain ⟨ i, hi ⟩ := i
+    simp
+    rw [mem_Fin] at hi
+    obtain ⟨ x, hx1, hx2 ⟩ := hi
+    simp [hx2]
+    simp_all
+    linarith
+  } ⟩ :(nat.specify (fun x ↦ 1 ≤ (x:ℕ) ∧ (x:ℕ) ≤ n)))
+  use f
+  unfold f
+  constructor
+  . intro i1 i2 h
+    simp at h
+    simp [h]
+  . intro ⟨ y, hy ⟩
+    rw [specification_axiom''] at hy
+    obtain ⟨ hy2, hy3, hy4 ⟩ := hy
+    match hy':((⟨ y, hy2 ⟩:nat):ℕ) with
+    | 0 => linarith
+    | y' + 1 => {
+      use ⟨ y', by {
+        rw [mem_Fin]
+        use y'
+        simp
+        linarith
+      } ⟩
+      simp at hy' ⊢
+      have : y = ((y' + (1:ℕ)):Object)
+      . rw [← hy']
+        simp
+      simp [this]
+      apply Fin.toNat_mk
+      linarith
+    }
 
 /-- Example 3.6.7 -/
 theorem SetTheory.Set.Example_3_6_7a (a:Object) : ({a}:Set).has_card 1 := by
@@ -154,13 +197,37 @@ theorem SetTheory.Set.pos_card_nonempty {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_
   have hnon : Fin n ≠ ∅ := by
     apply nonempty_of_inhabited (x := 0); rw [mem_Fin]; use 0, (by omega); rfl
   rw [has_card_iff] at hX
-  choose f hf using hX
-  sorry
+  choose f hfi hfs using hX
   -- obtain a contradiction from the fact that `f` is a bijection from the empty set to a
   -- non-empty set.
+  have h := nonempty_def hnon
+  obtain ⟨ i, hi ⟩ := h
+  specialize hfs ⟨ i, hi ⟩
+  obtain ⟨ ⟨ e, he ⟩, _ ⟩ := hfs
+  simp [this] at he
 
 /-- Exercise 3.6.2a -/
-theorem SetTheory.Set.has_card_zero {X:Set} : X.has_card 0 ↔ X = ∅ := by sorry
+theorem SetTheory.Set.has_card_zero {X:Set} : X.has_card 0 ↔ X = ∅ := by
+  rw [has_card_iff]
+  constructor <;> intro h
+  . obtain ⟨ f, hfi, hfs ⟩ := h
+    -- Assume to the contrary X is nonempty. Then f X is part of Fin 0.
+    by_contra h
+    -- change X ≠ ∅ at h
+    replace h := nonempty_def h
+    obtain ⟨ x, hx ⟩ := h
+    have h := (f ⟨ x, hx ⟩).2
+    simp at h
+  . set f:X → (Fin 0) := fun e ↦ ⟨ 1, by {
+      have h2 := e.2
+      simp [h] at h2
+    } ⟩
+    use f
+    constructor
+    . intro ⟨ e, he ⟩
+      simp [h] at he
+    . intro ⟨ e, he ⟩
+      simp at he
 
 /-- Lemma 3.6.9 -/
 theorem SetTheory.Set.card_erase {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_card n) (x:X) :
@@ -181,7 +248,19 @@ theorem SetTheory.Set.card_erase {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_card n)
     else Fin_mk _ (f (ι x') - 1) (by omega)
   have hg_def (x':X') : if (f (ι x'):ℕ) < m₀ then (g x':ℕ) = f (ι x') else (g x':ℕ) = f (ι x') - 1 := by
     split_ifs with h' <;> simp [g,h']
-  have hg : Function.Bijective g := by sorry
+  have hg : Function.Bijective g
+  . obtain ⟨ hfi, hfs ⟩ := hf
+    constructor
+    . intro x1 x2 h
+      -- f x != m0 due to injectivity.
+      -- Split on f x and consider both branches which are ultimately f x with/without subtraction.
+      -- f is injective and so we can cancel that as long as we can prove f x is > 0 (f x > m0).
+      -- Branch mismatch case (f x1 < m0, f x2 > m0) contradicts original assumption of equality of g.
+      sorry
+    . intro y
+      -- If y < m0, consider x' in X where f x' = y. x' != x because f x = m0.
+      -- Otherwise y >= m0, consider x' in X where f x' = y + 1. x' != x because f x = m0.
+      sorry
   use g
 
 /-- Proposition 3.6.8 (Uniqueness of cardinality) -/
@@ -233,7 +312,28 @@ abbrev SetTheory.Set.finite (X:Set) : Prop := ∃ n:ℕ, X.has_card n
 abbrev SetTheory.Set.infinite (X:Set) : Prop := ¬ finite X
 
 /-- Exercise 3.6.3, phrased using Mathlib natural numbers -/
-theorem SetTheory.Set.bounded_on_finite {n:ℕ} (f: Fin n → nat) : ∃ M, ∀ i, (f i:ℕ) ≤ M := by sorry
+theorem SetTheory.Set.bounded_on_finite {n:ℕ} (f: Fin n → nat) : ∃ M, ∀ i, (f i:ℕ) ≤ M := by
+  induction' n with i IH
+  . use 0
+    intro ⟨ x, hx ⟩
+    simp at hx
+  -- Consider the function that maps to f for all i. Then this is bounded by M and so is f.
+  -- f (i+1) might be higher so consider max(M, f (i+1)).
+  set g : (Fin i) -> nat := fun x ↦ f ⟨ x, by {
+    obtain ⟨ x, hx ⟩ := x
+    rw [mem_Fin] at *
+    obtain ⟨ x', hx', hx'2 ⟩ := hx
+    use x'
+    simp [hx'2]
+    linarith
+  } ⟩
+  specialize IH g
+  obtain ⟨ M, IH ⟩ := IH
+  use max M ((f ⟨ i, by simp; exact Subtype.property _ ⟩):ℕ)
+  intro n
+  -- If n < i, f n = g n <= M.
+  -- Otherwise f n <= f n.
+  sorry
 
 /-- Theorem 3.6.12 -/
 theorem SetTheory.Set.nat_infinite : infinite nat := by
