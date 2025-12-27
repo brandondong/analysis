@@ -52,19 +52,57 @@ theorem SetTheory.Set.Example_3_6_2 : EqualCard {0,1,2} {3,4,5} := by
   · use ⟨2, by simp⟩; aesop
 
 /-- Example 3.6.3 -/
-theorem SetTheory.Set.Example_3_6_3 : EqualCard nat (nat.specify (fun x ↦ Even (x:ℕ))) := by sorry
+theorem SetTheory.Set.Example_3_6_3 : EqualCard nat (nat.specify (fun x ↦ Even (x:ℕ))) := by
+  use fun n ↦ ⟨ ((n:ℕ) + (n:ℕ)), by {
+    rw [specification_axiom'']
+    simp
+    exact Subtype.property _
+  } ⟩
+  constructor
+  . intro n1 n2 h
+    simp at h
+    have : nat_equiv.symm n1 = nat_equiv.symm n2
+    . linarith
+    exact (nat_equiv_symm_inj n1 n2).mp this
+  . intro ⟨ y, hy ⟩
+    rw [specification_axiom''] at hy
+    obtain ⟨ hy, hy2 ⟩ := hy
+    obtain ⟨ x, hx ⟩ := hy2
+    use x
+    simp
+    symm at hx
+    aesop
 
 @[refl]
 theorem SetTheory.Set.EqualCard.refl (X:Set) : EqualCard X X := by
-  sorry
+  use id
+  exact Function.bijective_id
 
 @[symm]
 theorem SetTheory.Set.EqualCard.symm {X Y:Set} (h: EqualCard X Y) : EqualCard Y X := by
-  sorry
+  obtain ⟨ f, hf ⟩ := h
+  rw [Function.bijective_iff_has_inverse] at hf
+  obtain ⟨ g, hgl, hgr ⟩ := hf
+  use g
+  use Function.LeftInverse.injective hgr, Function.RightInverse.surjective hgl
 
 @[trans]
 theorem SetTheory.Set.EqualCard.trans {X Y Z:Set} (h1: EqualCard X Y) (h2: EqualCard Y Z) : EqualCard X Z := by
-  sorry
+  obtain ⟨ f1, hf1i, hf1s ⟩ := h1
+  obtain ⟨ f2, hf2i, hf2s ⟩ := h2
+  use fun x ↦ f2 (f1 x)
+  constructor
+  . intro x1 x2 h
+    simp at h
+    specialize hf2i h
+    exact hf1i hf2i
+  . intro z
+    specialize hf2s z
+    obtain ⟨ y, hy ⟩ := hf2s
+    specialize hf1s y
+    obtain ⟨ x, hx ⟩ := hf1s
+    use x
+    simp [hx, hy]
 
 /-- Proposition 3.6.4 / Exercise 3.6.1 -/
 instance SetTheory.Set.EqualCard.inst_setoid : Setoid SetTheory.Set := ⟨ EqualCard, {refl, symm, trans} ⟩
