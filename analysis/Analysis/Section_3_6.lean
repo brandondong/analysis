@@ -333,7 +333,30 @@ theorem SetTheory.Set.bounded_on_finite {n:ℕ} (f: Fin n → nat) : ∃ M, ∀ 
   intro n
   -- If n < i, f n = g n <= M.
   -- Otherwise f n <= f n.
-  sorry
+  by_cases hn : n < i
+  . have hn2 : n.val ∈ (Fin i)
+    . rw [mem_Fin]
+      use n
+      simp [hn]
+    specialize IH ⟨ n, hn2 ⟩
+    have : f n = g ⟨ n, hn2 ⟩
+    . unfold g
+      simp
+    rw [this]
+    simp [IH]
+  . have : n = ⟨ i, by simp; exact Subtype.property _ ⟩
+    -- nat nonsense for what should be immediately obvious.
+    . obtain ⟨ n, hn2 ⟩ := n
+      rw [mem_Fin] at hn2
+      obtain ⟨ x, hx, hx2 ⟩ := hn2
+      simp
+      simp at hn
+      simp [hx2]
+      simp [hx2] at hn
+      have : i ≤ x
+      . simp_all
+      linarith
+    simp [this]
 
 /-- Theorem 3.6.12 -/
 theorem SetTheory.Set.nat_infinite : infinite nat := by
@@ -381,7 +404,14 @@ theorem SetTheory.Set.EquivCard_to_card_eq {X Y:Set} (h: X ≈ Y): X.card = Y.ca
 
 /-- Exercise 3.6.2 -/
 theorem SetTheory.Set.empty_iff_card_eq_zero {X:Set} : X = ∅ ↔ X.finite ∧ X.card = 0 := by
-  sorry
+  rw [← has_card_zero]
+  constructor <;> intro h
+  . constructor
+    . use 0
+    . exact has_card_to_card h
+  . obtain ⟨ hf, hc ⟩ := h
+    have hc2 := has_card_card hf
+    rwa [hc] at hc2
 
 lemma SetTheory.Set.empty_of_card_eq_zero {X:Set} (hX : X.finite) : X.card = 0 → X = ∅ := by
   intro h
@@ -404,13 +434,82 @@ lemma SetTheory.Set.empty_finite : (∅: Set).finite := finite_of_empty rfl
 @[simp]
 lemma SetTheory.Set.empty_card_eq_zero : (∅: Set).card = 0 := card_eq_zero_of_empty rfl
 
+open Classical in
 /-- Proposition 3.6.14 (a) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_insert {X:Set} (hX: X.finite) {x:Object} (hx: x ∉ X) :
-    (X ∪ {x}).finite ∧ (X ∪ {x}).card = X.card + 1 := by sorry
+    (X ∪ {x}).finite ∧ (X ∪ {x}).card = X.card + 1 := by
+  -- There exists a bijection from X -> Fin n.
+  -- We can create a new bijection from X' -> Fin n+1 by mapping x to n.
+  set X' := (X ∪ {x})
+  obtain ⟨ n, hX ⟩ := hX
+  have hX2 := hX
+  rw [has_card_iff] at hX
+  obtain ⟨ f, hfi, hfj ⟩ := hX
+  have goal : X'.has_card (n+1)
+  . set g: X' → Fin (n+1) := fun x ↦ if hx:(x.val ∈ X) then ⟨ f ⟨ x, hx ⟩, by {
+      set fx := (f ⟨↑x, hx⟩)
+      have hfx := fx.property
+      rw [mem_Fin] at *
+      obtain ⟨ x, hx, hx2 ⟩ := hfx
+      use x
+      simp [hx2]
+      linarith
+    } ⟩ else Fin_mk (n+1) n (by linarith)
+    -- Useful helpers for later.
+    have x_iff : ∀ x' ∈ X', x' ≠ x → x' ∈ X
+    . intro x' hx' hx
+      unfold X' at hx'
+      simp at hx'
+      tauto
+    have g_iff : ∀ x', (hx:x' ∈ X') → g ⟨ x', hx ⟩ = n ↔ x' = x
+    . intro x' hx'
+      constructor <;> intro h
+      . by_contra hx
+        specialize x_iff x' hx' hx
+        unfold g at h
+        simp [x_iff] at h
+        set contra := (f ⟨ x', of_eq_true (eq_true x_iff) ⟩)
+        have hc := contra.2
+        rw [mem_Fin] at hc
+        obtain ⟨ m, hm ⟩ := hc
+        simp at hm
+        linarith
+      . simp [h]
+        unfold g
+        simp [hx]
+    use g
+    constructor
+    . intro x1 x2 h
+      -- If g x' = n, then we assert x' = x.
+      -- Otherwise g x' != n and so x1 and x2 != x.
+      -- Then g = f which is injective.
+      by_cases hg : (g x1) = n
+      . have h1 := (g_iff x1 x1.2).mp hg
+        rw [h] at hg
+        have h2 := (g_iff x2 x2.2).mp hg
+        rw [← h2, coe_inj] at h1
+        exact h1
+      . have hg2 := hg
+        rw [h] at hg2
+        sorry
+    . intro y
+      -- if y = n, then use x.
+      -- Otherwise y < n and so we can use surjectivity of f.
+      sorry
+  constructor
+  . use n+1
+  . have h1 := has_card_to_card goal
+    have h2 := has_card_to_card hX2
+    simp [h1, h2]
 
 /-- Proposition 3.6.14 (b) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_union {X Y:Set} (hX: X.finite) (hY: Y.finite) :
-    (X ∪ Y).finite ∧ (X ∪ Y).card ≤ X.card + Y.card := by sorry
+    (X ∪ Y).finite ∧ (X ∪ Y).card ≤ X.card + Y.card := by
+  -- Induct on the cardinality of X.
+  -- IH is for all sets of X size i, the property holds. Prove for X of size i+1.
+  -- We can consider erasure of x and use IH to show it holds. Then either:
+  -- x is in Y or not and in both cases, we can create an appropriate bijection from IH.
+  sorry
 
 /-- Proposition 3.6.14 (b) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_union_disjoint {X Y:Set} (hX: X.finite) (hY: Y.finite)
