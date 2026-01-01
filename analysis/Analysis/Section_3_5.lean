@@ -1271,7 +1271,7 @@ theorem SetTheory.Set.recursion (X: Set) (f: nat → X → X) (c:X) :
     -- Prove for Fin n for all n.
     -- Then define a function that instantiates the exist with a choose.
     ∃! a: nat → X, a 0 = c ∧ ∀ n, a (n + 1:ℕ) = f n (a n) := by
-  have sub : ∀ n': ℕ, ∃ a: Fin (n'+1) → X, a ⟨ 0, by {
+  have h_bounded : ∀ n': ℕ, ∃ a: Fin (n'+1) → X, a ⟨ 0, by {
     rw [mem_Fin]
     use 0
     simp
@@ -1293,7 +1293,7 @@ theorem SetTheory.Set.recursion (X: Set) (f: nat → X → X) (c:X) :
     obtain ⟨ a, ha, ha2 ⟩ := IH
     use fun n ↦ if hn: n ≤ i then a (⟨ n, sorry ⟩) else f sorry (a (⟨ sorry, sorry ⟩))
     sorry
-  set a: nat → X := fun n ↦ (sub (n+5)).choose ⟨ n, by {
+  set a: nat → X := fun n ↦ (h_bounded (n+5)).choose ⟨ n, by {
     rw [mem_Fin]
     use n
     simp
@@ -1302,13 +1302,13 @@ theorem SetTheory.Set.recursion (X: Set) (f: nat → X → X) (c:X) :
   have ha : a 0 = c ∧ ∀ (n : ℕ), a ↑(n + 1) = f (↑n) (a ↑n)
   . constructor
     . unfold a
-      set c := sub (nat_equiv.symm 0 + 5)
+      set c := h_bounded (nat_equiv.symm 0 + 5)
       have hc := c.choose_spec
       tauto
     intro n
     unfold a
-    set c := sub (nat_equiv.symm ↑(n + 1) + 5)
-    set d := sub (nat_equiv.symm ↑(n) + 5)
+    set c := h_bounded (nat_equiv.symm ↑(n + 1) + 5)
+    set d := h_bounded (nat_equiv.symm ↑(n) + 5)
     have hc := c.choose_spec.2
     have hc2 := hc n (by sorry)
     simp [hc2]

@@ -258,9 +258,24 @@ theorem SetTheory.Set.card_erase {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_card n)
       -- Branch mismatch case (f x1 < m0, f x2 > m0) contradicts original assumption of equality of g.
       sorry
     . intro y
-      -- If y < m0, consider x' in X where f x' = y. x' != x because f x = m0.
-      -- Otherwise y >= m0, consider x' in X where f x' = y + 1. x' != x because f x = m0.
-      sorry
+      have hy : y.val ∈ (Fin n)
+      . sorry
+      by_cases hy2 : y < m₀
+      . -- If y < m0, consider x' in X where f x' = y.
+        specialize hfs ⟨ y, hy ⟩
+        obtain ⟨ x', hx' ⟩ := hfs
+        -- x' != x because f x = m0.
+        have hx'2 : x'.val ∈ X'
+        . sorry
+        use ⟨ x', hx'2 ⟩
+        unfold g
+        have hx'f : f (ι ⟨ x', hx'2 ⟩) < m₀
+        . sorry
+        simp [hx'f]
+        unfold ι
+        simp [hx']
+      . -- Otherwise y >= m0, consider x' in X where f x' = y + 1. x' != x because f x = m0.
+        sorry
   use g
 
 /-- Proposition 3.6.8 (Uniqueness of cardinality) -/
@@ -665,9 +680,17 @@ lemma SetTheory.Set.pow_fun_eq_iff {A B : Set} (x y : ↑(A ^ B)) : x = y ↔ po
 theorem SetTheory.Set.card_pow {X Y:Set} (hY: Y.finite) (hX: X.finite) :
     (Y ^ X).finite ∧ (Y ^ X).card = Y.card ^ X.card := by sorry
 
+#check SetTheory.Set.prod_commutator
+
 /-- Exercise 3.6.5. You might find `SetTheory.Set.prod_commutator` useful. -/
 theorem SetTheory.Set.prod_EqualCard_prod (A B:Set) :
-    EqualCard (A ×ˢ B) (B ×ˢ A) := by sorry
+    EqualCard (A ×ˢ B) (B ×ˢ A) := by
+  have h := (SetTheory.Set.prod_commutator A B)
+  obtain ⟨ f, f_inv, hl, hr ⟩ := h
+  use f
+  constructor
+  . exact Function.LeftInverse.injective hl
+  . exact Function.RightInverse.surjective hr
 
 noncomputable abbrev SetTheory.Set.pow_fun_equiv' (A B : Set) : ↑(A ^ B) ≃ (B → A) :=
   pow_fun_equiv (A:=A) (B:=B)
@@ -685,7 +708,112 @@ theorem SetTheory.Set.pow_mul_pow_eq_pow_add (a b c:ℕ): (a^b) * a^c = a^(b+c) 
 
 /-- Exercise 3.6.7 -/
 theorem SetTheory.Set.injection_iff_card_le {A B:Set} (hA: A.finite) (hB: B.finite) :
-    (∃ f:A → B, Function.Injective f) ↔ A.card ≤ B.card := sorry
+    (∃ f:A → B, Function.Injective f) ↔ A.card ≤ B.card := by
+  obtain ⟨ nA, hnA ⟩ := hA
+  obtain ⟨ nB, hnB ⟩ := hB
+  constructor <;> intro h
+  . obtain ⟨ f, hf ⟩ := h
+    -- Induct on the cardinality of A, generalizing everything else.
+    revert A B nB
+    induction' nA with i IH
+    . intro A _ hA _ _ _ _
+      have hA2 : A.card = 0 := by exact has_card_to_card hA
+      simp [hA2]
+    -- IH: If there is an injective f from any set A -> B, then |A| <= |B|.
+    -- Now need to prove for A with one more element.
+    intro A B hiA j hjB f hf
+    -- Consider A - {a} mapped to B - {f(a)}. (A is empty can be handled trivially)
+    by_cases hA : A = ∅
+    . have hA2 : A.card = 0 := by exact card_eq_zero_of_empty hA
+      simp [hA2]
+    replace hA := nonempty_def hA
+    obtain ⟨ a, hA ⟩ := hA
+    set A' := A \ {a}
+    set b := (f ⟨ a, hA ⟩)
+    set B' := B \ ({b.val}:Set)
+    -- Keeping f but without a is still injective and so IH holds.
+    have hA'A : A' ⊆ A := by {
+      unfold A'
+      intro x hx
+      simp at hx
+      tauto
+    }
+    set f':A' → B' := fun a' ↦ ⟨ f ⟨ a', hA'A a'.1 a'.2 ⟩, by {
+      unfold B'
+      simp
+      constructor
+      . exact Subtype.property _
+      -- Need to prove f' a' isn't = b. Can use injectivity.
+      intro h
+      unfold b at h
+      rw [coe_inj] at h
+      have := hf h
+      simp at this
+      have contra := a'.2
+      unfold A' at contra
+      simp [this] at contra
+    } ⟩
+    have hf' : Function.Injective f'
+    . intro x1 x2 hf'
+      unfold f' at hf'
+      simp [coe_inj] at hf'
+      have := hf hf'
+      simp [coe_inj] at this
+      exact this
+    -- The <= relation still holds with both sides adding 1. (|B| = 0 can be handled trivially)
+    have hB : B.card = j := by exact has_card_to_card hjB
+    have hAc : A.card = i+1 := by exact has_card_to_card hiA
+    match j with
+    | 0 => {
+      have hB2 : B = ∅ := by exact has_card_zero.mp hjB
+      have hB := b.2
+      simp [hB2] at hB
+    }
+    | j + 1 => {
+      have hA' : A'.has_card i := by {
+        have := card_erase (by norm_num) hiA ⟨ a, hA ⟩
+        simp at this
+        exact this
+      }
+      have hB' : B'.has_card j := by {
+        have := card_erase (by norm_num) hjB b
+        simp at this
+        exact this
+      }
+      have hA'B'  := IH hA' j hB' f' hf'
+      replace hA' : A'.card = i := by exact has_card_to_card hA'
+      replace hB' : B'.card = j := by exact has_card_to_card hB'
+      linarith
+    }
+  . -- We know there's a bijective f from A -> nA and g from nB -> B.
+    -- Consider h = g(id(f)).
+    have hnA2 := hnA
+    have hnB2 := hnB
+    rw [has_card_iff] at hnA hnB
+    obtain ⟨ f, hf ⟩ := hnA
+    obtain ⟨ g', hg' ⟩ := hnB
+    have hB_inv : ∃ g:(Fin nB) → B, Function.Injective g
+    . use Function.surjInv hg'.2
+      apply Function.injective_surjInv
+    obtain ⟨ g, hg ⟩ := hB_inv
+    use fun a ↦ g ⟨ (f a), by {
+      have := (f a).2
+      rw [mem_Fin] at *
+      obtain ⟨ x, hx1, hx2 ⟩ := this
+      use x
+      simp [hx2]
+      have : nA ≤ nB
+      . have : A.card = nA := by exact has_card_to_card hnA2
+        have : B.card = nB := by exact has_card_to_card hnB2
+        linarith
+      linarith
+    } ⟩
+    intro a1 a2 ha
+    simp at ha
+    specialize hg ha
+    simp at hg
+    rw [coe_inj] at hg
+    exact hf.1 hg
 
 /-- Exercise 3.6.8 -/
 theorem SetTheory.Set.surjection_from_injection {A B:Set} (hA: A ≠ ∅) (f: A → B)
@@ -693,7 +821,99 @@ theorem SetTheory.Set.surjection_from_injection {A B:Set} (hA: A ≠ ∅) (f: A 
 
 /-- Exercise 3.6.9 -/
 theorem SetTheory.Set.card_union_add_card_inter {A B:Set} (hA: A.finite) (hB: B.finite) :
-    A.card + B.card = (A ∪ B).card + (A ∩ B).card := by  sorry
+    A.card + B.card = (A ∪ B).card + (A ∩ B).card := by
+  -- Induction on cardinality of A, generalize everything else.
+  obtain ⟨ n, hn ⟩ := hA
+  obtain ⟨ m, hm ⟩ := hB
+  have h1 : A.card = n := by exact has_card_to_card hn
+  have h2 : B.card = m := by exact has_card_to_card hm
+  rw [h1, h2]
+  clear h1 h2
+  revert A B m
+  induction' n with i IH
+  . intro A B hA m hB
+    have hAe : A = ∅ := by exact has_card_zero.mp hA
+    have hAB : (A ∪ B) = B
+    . simp [hAe]
+    have hAB2 : (A ∩ B) = ∅
+    . simp [hAe, SetTheory.Set.ext_iff]
+    simp [hAB, hAB2]
+    exact (has_card_to_card hB).symm
+  intro A B hAc j hBc
+  -- IH step: consider A' = A - {a}.
+  -- (If A is empty, this is trivial)
+  by_cases hAe : A = ∅
+  . have h1 : A.card = 0 := by exact card_eq_zero_of_empty hAe
+    have h2 : A.card = i + 1 := by exact has_card_to_card hAc
+    linarith
+  have hAne := nonempty_def hAe
+  obtain ⟨ a, ha ⟩ := hAne
+  set A' := A \ ({a}:Set)
+  have hAf : A.finite := by use (i+1)
+  have hBf : B.finite := by use j
+  have hA'As : A' ⊆ A
+  . intro x
+    simp [A']
+    tauto
+  have hA'f : A'.finite
+  . exact (card_subset hAf hA'As).1
+  -- IH, obtain equality of A'/B.
+  have hA'c : A'.has_card i
+  . have := card_erase (by norm_num) hAc ⟨ a, ha ⟩
+    simp at this
+    simp [A', this]
+  specialize IH hA'c j hBc
+  -- Then a is either in B or not.
+  by_cases haB : a ∈ B
+  . -- If so, then already in (A' or B).
+    have hABe : A' ∪ B = A ∪ B
+    . ext x
+      simp [A']
+      by_cases hxa : x = a
+      . simp [hxa]
+        tauto
+      . simp [hxa]
+    have hABp : (A' ∩ B).card + 1 = (A ∩ B).card
+    . have hA'Bf : (A' ∩ B).finite
+      . -- Can use subset result.
+        have : (A' ∩ B) ⊆ A'
+        . intro x
+          simp
+          tauto
+        exact (card_subset hA'f this).1
+      have haA'B : a ∉ (A' ∩ B)
+      . simp [A']
+      have h_ins := (card_insert hA'Bf haA'B).2
+      have : (A' ∩ B ∪ {a}) = (A ∩ B)
+      . ext x
+        simp [A']
+        by_cases hx : x = a <;> simp [hx]
+        . tauto
+      simp [← this, h_ins]
+    rw [← hABe]
+    linarith
+  . -- Otherwise now in (A or B) whereas not previously.
+    have hABe : A' ∩ B = A ∩ B
+    . ext x
+      simp [A']
+      by_cases hxa : x = a
+      . simp [hxa]
+        tauto
+      . simp [hxa]
+    have hABp : (A' ∪ B).card + 1 = (A ∪ B).card
+    . have hA'Bf : (A' ∪ B).finite
+      . exact (card_union hA'f hBf).1
+      have haA'B : a ∉ (A' ∪ B)
+      . simp [A', haB]
+      have h_ins := (card_insert hA'Bf haA'B).2
+      have : (A' ∪ B ∪ {a}) = (A ∪ B)
+      . ext x
+        simp [A']
+        by_cases hx : x = a <;> simp [hx]
+        . tauto
+      simp [← this, h_ins]
+    rw [← hABe]
+    linarith
 
 /-- Exercise 3.6.10 -/
 theorem SetTheory.Set.pigeonhole_principle {n:ℕ} {A: Fin n → Set}
