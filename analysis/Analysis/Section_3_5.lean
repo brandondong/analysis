@@ -1352,19 +1352,69 @@ theorem SetTheory.Set.nat_unique (nat':Set) (zero:nat') (succ:nat' → nat')
           }
           | n + 1 => {
             specialize hf2 n
-            have : ↑(n + 1) = x2
-            . exact
-              Eq.symm
-                ((fun [SetTheory] n m ↦ (nat_equiv_symm_inj n m).mp) x2 (↑(n + 1))
-                  (congrArg (⇑nat_equiv.symm) (nat_coe_eq hn)))
-            rw [this, ← heq] at hf2
+            simp at hn
+            replace hn := nat_coe_eq hn
+            rw [hn, hf2] at heq
             specialize succ_ne (f ↑n)
-            simp [hf2] at succ_ne
+            simp [heq] at succ_ne
           }
-        sorry
-      sorry
-    sorry
-  sorry
+        match hn:(x2:ℕ) with
+        | 0 => {
+          replace hn := nat_coe_eq_zero hn
+          replace hx1 := nat_coe_eq hx1
+          rw [hx1, hn, hf2, hf] at heq
+          specialize succ_ne (f i)
+          contradiction
+        }
+        | n + 1 => {
+          simp at hn
+          replace hn := nat_coe_eq hn
+          replace hx1 := nat_coe_eq hx1
+          simp [hn, hx1, hf2] at heq
+          specialize succ_of_ne (f i) (f n)
+          simp [heq] at succ_of_ne
+          specialize ih succ_of_ne
+          simp at ih
+          rw [hn, hx1, ih]
+        }
+      . intro y
+        -- Use induction axiom to prove for all y.
+        specialize ind (fun y ↦ ∃ a, f a = y) (by {
+          simp
+          use 0, (by exact Subtype.property _)
+          simp [← hf]
+          rfl
+        }) (by {
+          intro y hy
+          obtain ⟨ x, hx ⟩ := hy
+          use ((x:ℕ)+(1:ℕ))
+          simp [hf2, hx]
+        }) y
+        exact ind
+    use hf
+    intro x y
+    constructor <;> intro h
+    . simp [hf2, h]
+    . simp [hf2] at h
+      specialize succ_of_ne (f x) y
+      simp [h] at succ_of_ne
+      exact succ_of_ne
+  intro f1 f2 ⟨ hf1b, hf1z, hf1s ⟩ ⟨ hf2b, hf2z, hf2s ⟩
+  rw [funext_iff]
+  intro x
+  -- Induct on x to prove equality for each step.
+  induction' hx: (x:ℕ) with i ih generalizing x
+  . have hx2 := nat_coe_eq_zero hx
+    simp [hx2, hf2z, hf1z]
+  specialize ih i (by simp)
+  have hx2 := nat_coe_eq hx
+  simp [hx2]
+  rw [hf1s] at ih
+  simp at ih
+  rw [ih]
+  have := (hf2s i (f2 i)).mp
+  simp at this
+  simp [this]
 
 
 end Chapter3
