@@ -558,11 +558,61 @@ theorem SetTheory.Set.card_insert {X:Set} (hX: X.finite) {x:Object} (hx: x ∉ X
 /-- Proposition 3.6.14 (b) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_union {X Y:Set} (hX: X.finite) (hY: Y.finite) :
     (X ∪ Y).finite ∧ (X ∪ Y).card ≤ X.card + Y.card := by
-  -- Induct on the cardinality of X.
+  -- Induct on the cardinality of X, generalizing X.
+  obtain ⟨ i, hi ⟩ := hX
+  obtain ⟨ j, hj ⟩ := hY
+  revert X
+  induction' i with i IH
+  . intro X hX
+    have he : X = ∅ := by exact has_card_zero.mp hX
+    have : X ∪ Y = Y
+    . ext x
+      simp [he]
+    rw [this]
+    constructor
+    . use j
+    . linarith
+  intro X hX
   -- IH is for all sets of X size i, the property holds. Prove for X of size i+1.
-  -- We can consider erasure of x and use IH to show it holds. Then either:
-  -- x is in Y or not and in both cases, we can create an appropriate bijection from IH.
-  sorry
+  -- We can consider erasure of x and use IH to show it holds.
+  have he : X ≠ ∅
+  . intro contra
+    have : X.card = i+1 := by exact has_card_to_card hX
+    have : X.card = 0 := by exact card_eq_zero_of_empty contra
+    linarith
+  replace he := nonempty_def he
+  obtain ⟨ x, hx ⟩ := he
+  set X' := X \ {x}
+  have hX' : X'.has_card i
+  . have := card_erase (by linarith) hX ⟨ x, hx ⟩
+    simp at this
+    exact this
+  have hXc : X.card = i+1 := by exact has_card_to_card hX
+  have hYc : Y.card = j := by exact has_card_to_card hj
+  have hX'c : X'.card = i := by exact has_card_to_card hX'
+  specialize IH hX'
+  -- Then either x is in X' or Y or not.
+  by_cases hx2 : x ∈ ((X' ∪ Y))
+  . -- If it is, then X' or Y = X or Y and we're done.
+    have he : (X' ∪ Y) = (X ∪ Y)
+    . ext x'
+      simp [X']
+      by_cases hx' : x' = x <;> simp [hx']
+      simp [X'] at hx2
+      simp [hx2]
+    rw [← he]
+    use IH.1
+    linarith
+  -- Otherwise, we can use card_insert to get the relation.
+  have h_ins := card_insert IH.1 hx2
+  have he : X' ∪ Y ∪ {x} = X ∪ Y
+  . ext x'
+    simp [X']
+    by_cases hx' : x' = x <;> simp [hx']
+    . tauto
+  rw [← he, h_ins.2]
+  use h_ins.1
+  linarith
 
 /-- Proposition 3.6.14 (b) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_union_disjoint {X Y:Set} (hX: X.finite) (hY: Y.finite)
@@ -667,11 +717,39 @@ theorem SetTheory.Set.card_image_inj {X Y:Set} (hX: X.finite) {f: X → Y}
 theorem SetTheory.Set.card_prod {X Y:Set} (hX: X.finite) (hY: Y.finite) :
     (X ×ˢ Y).finite ∧ (X ×ˢ Y).card = X.card * Y.card := by sorry
 
+abbrev f_to_power {A B : Set} : (B → A) → (A ^ B).toSubtype :=
+  fun f ↦ ⟨ f, by {
+    rw [SetTheory.Set.powerset_axiom]
+    use f
+  } ⟩
+
+theorem f_to_power_surjective {A B : Set} : Function.Surjective (f_to_power (A:=A) (B:=B)) := by
+  intro b
+  have hb := b.2
+  simp at hb
+  obtain ⟨ f, hf ⟩ := hb
+  use f
+  simp [f_to_power, hf]
+
+theorem f_to_power_injective {A B : Set} : Function.Injective (f_to_power (A:=A) (B:=B)) := by
+  intro a1 a2 h
+  simp [f_to_power] at h
+  exact h
+
 noncomputable def SetTheory.Set.pow_fun_equiv {A B : Set} : ↑(A ^ B) ≃ (B → A) where
-  toFun := sorry
-  invFun := sorry
-  left_inv := sorry
-  right_inv := sorry
+  toFun := Function.surjInv f_to_power_surjective
+  invFun := f_to_power
+  left_inv := by {
+    change Function.RightInverse (Function.surjInv _) f_to_power
+    apply Function.rightInverse_surjInv
+  }
+  right_inv := by {
+    change Function.LeftInverse (Function.surjInv _) f_to_power
+    apply Function.leftInverse_surjInv
+    constructor
+    . exact f_to_power_injective
+    . exact f_to_power_surjective
+  }
 
 lemma SetTheory.Set.pow_fun_eq_iff {A B : Set} (x y : ↑(A ^ B)) : x = y ↔ pow_fun_equiv x = pow_fun_equiv y := by
   rw [←pow_fun_equiv.apply_eq_iff_eq]
@@ -815,9 +893,27 @@ theorem SetTheory.Set.injection_iff_card_le {A B:Set} (hA: A.finite) (hB: B.fini
     rw [coe_inj] at hg
     exact hf.1 hg
 
+open Classical in
 /-- Exercise 3.6.8 -/
 theorem SetTheory.Set.surjection_from_injection {A B:Set} (hA: A ≠ ∅) (f: A → B)
-  (hf: Function.Injective f) : ∃ g:B → A, Function.Surjective g := by sorry
+  (hf: Function.Injective f) : ∃ g:B → A, Function.Surjective g := by
+  -- Get a' from non-empty A.
+  have ha' := nonempty_def hA
+  obtain ⟨ a', ha' ⟩ := ha'
+  -- For each b, if there is an a where f a = b, then use that.
+  -- (Not axiom of choice since it's unique existence)
+  -- Otherwise a'.
+  set g:B → A := fun b ↦ if ha:(∃ a, f a = b) then ha.choose else ⟨ a', ha' ⟩
+  use g
+  intro a
+  -- Surjectivity is easy since each a has a mapping through f a.
+  use f a
+  unfold g
+  have h_exists : ∃ a_1, f a_1 = f a := by use a
+  simp [h_exists]
+  set c := of_eq_true (eq_true h_exists)
+  have hc := c.choose_spec
+  exact hf hc
 
 /-- Exercise 3.6.9 -/
 theorem SetTheory.Set.card_union_add_card_inter {A B:Set} (hA: A.finite) (hB: B.finite) :
@@ -915,9 +1011,106 @@ theorem SetTheory.Set.card_union_add_card_inter {A B:Set} (hA: A.finite) (hB: B.
     rw [← hABe]
     linarith
 
+/-- Any `Fin n` can be cast to `Fin (n + 1)`. Compare to Mathlib `Fin.castSucc`. -/
+def SetTheory.Set.Fin.castSucc {n} (x : Fin n) : Fin (n + 1) :=
+  Fin_embed _ _ (by omega) x
+
 /-- Exercise 3.6.10 -/
 theorem SetTheory.Set.pigeonhole_principle {n:ℕ} {A: Fin n → Set}
-  (hA: ∀ i, (A i).finite) (hAcard: (iUnion _ A).card > n) : ∃ i, (A i).card ≥ 2 := by sorry
+  (hA: ∀ i, (A i).finite) (hAcard: (iUnion _ A).card > n) : ∃ i, (A i).card ≥ 2 := by
+  -- Assume to the conary that all |A i| <= 1.
+  by_contra h
+  push_neg at h
+  -- Then we need to show iUnion <= n.
+  suffices goal : ((Fin n).iUnion A).card ≤ n
+  . linarith
+  clear hAcard
+  -- Induct on n
+  induction' n with i IH
+  . have he : ((Fin 0).iUnion A) = ∅
+    . ext x
+      simp [mem_iUnion]
+    simp [he]
+  -- IH: iUnion <= n, need to show <= n+1 when adding another A i.
+  set A':Fin i → Set := fun n ↦ A (SetTheory.Set.Fin.castSucc n)
+  have hA' : ∀ i, (A' i).finite
+  . intro i'
+    specialize hA (SetTheory.Set.Fin.castSucc i')
+    simp [A', hA]
+  have h2 : (∀ (i : (Fin i)), (A' i).card < 2)
+  . intro i'
+    specialize h (SetTheory.Set.Fin.castSucc i')
+    simp [A', h]
+  specialize IH hA' h2
+  -- card_union to get the required relation.
+  have hA'f : ((Fin i).iUnion A').finite
+  . -- Induction with repeated card_union.
+    clear IH h2 hA h
+    induction' i with i IH
+    . have : ((Fin 0).iUnion A') = ∅
+      . ext x
+        simp [mem_iUnion]
+      exact finite_of_empty this
+    replace IH := IH (A := A') (by {
+      intro i'
+      specialize hA' (Fin.castSucc i')
+      simp [hA']
+    })
+    specialize hA' (Fin_mk (i+1) i (by norm_num))
+    have h_fin := (card_union IH hA').1
+    have : (((Fin i).iUnion fun n ↦ A' (Fin.castSucc n)) ∪ A' (Fin_mk (i + 1) i (by norm_num))) = ((Fin (i + 1)).iUnion A')
+    . ext x
+      simp only [mem_union, mem_iUnion]
+      constructor <;> intro h
+      . obtain h | h := h
+        . obtain ⟨ i', hi' ⟩ := h
+          use Fin.castSucc i'
+        . use (Fin_mk (i + 1) i (by norm_num))
+      . obtain ⟨ i', hi' ⟩ := h
+        by_cases hi'2 : i' < i
+        . left
+          use Fin_mk i i' hi'2
+          simp [Fin_mk, Fin.castSucc, hi']
+        . right
+          replace hi'2 : i' = Fin_mk (i+1) i (by norm_num)
+          . have hi'3 := i'.2
+            rw [mem_Fin] at hi'3
+            obtain ⟨ x, hx1, hx2 ⟩ := hi'3
+            simp at hi'2
+            simp at hx2
+            simp
+            linarith
+          simp [← hi'2, hi']
+    simp [← this, h_fin]
+  have hAif : (A (Fin_mk (i+1) i (by norm_num))).finite
+  . exact hA (Fin_mk (i+1) i (by norm_num))
+  have h_union := (card_union hA'f hAif).2
+  have : (Fin i).iUnion A' ∪ (A (Fin_mk (i + 1) i (by norm_num))) = ((Fin (i + 1)).iUnion A)
+  . ext x
+    simp only [mem_union, mem_iUnion]
+    constructor <;> intro h
+    . obtain h | h := h
+      . obtain ⟨ i', hi' ⟩ := h
+        use Fin.castSucc i'
+      . use (Fin_mk (i + 1) i (by norm_num))
+    . obtain ⟨ i', hi' ⟩ := h
+      by_cases hi'2 : i' < i
+      . left
+        use Fin_mk i i' hi'2
+        simp [Fin_mk, A', Fin.castSucc, hi']
+      . right
+        replace hi'2 : i' = Fin_mk (i+1) i (by norm_num)
+        . have hi'3 := i'.2
+          rw [mem_Fin] at hi'3
+          obtain ⟨ x, hx1, hx2 ⟩ := hi'3
+          simp at hi'2
+          simp at hx2
+          simp
+          linarith
+        simp [← hi'2, hi']
+  rw [← this]
+  specialize h (Fin_mk (i + 1) i (by norm_num))
+  linarith
 
 /-- Exercise 3.6.11 -/
 theorem SetTheory.Set.two_to_two_iff {X Y:Set} (f: X → Y): Function.Injective f ↔
@@ -952,10 +1145,6 @@ noncomputable def SetTheory.Set.perm_equiv_equiv {n : ℕ} : Permutations n ≃ 
 }
 
 /- Exercise 3.6.12 involves a lot of moving between `Fin n` and `Fin (n + 1)` so let's add some conveniences. -/
-
-/-- Any `Fin n` can be cast to `Fin (n + 1)`. Compare to Mathlib `Fin.castSucc`. -/
-def SetTheory.Set.Fin.castSucc {n} (x : Fin n) : Fin (n + 1) :=
-  Fin_embed _ _ (by omega) x
 
 @[simp]
 lemma SetTheory.Set.Fin.castSucc_inj {n} {x y : Fin n} : castSucc x = castSucc y ↔ x = y := by sorry
