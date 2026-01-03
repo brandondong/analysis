@@ -260,7 +260,10 @@ noncomputable abbrev Equiv.fromNat (P : PeanoAxioms) : Equiv Mathlib_Nat P where
   }
 
 /-- The task here is to establish that any two structures obeying the Peano axioms are equivalent. -/
-noncomputable abbrev Equiv.mk' (P Q : PeanoAxioms) : Equiv P Q := by sorry
+noncomputable abbrev Equiv.mk' (P Q : PeanoAxioms) : Equiv P Q := by
+  have h1 := Equiv.symm (Equiv.fromNat P)
+  have h2 := Equiv.fromNat Q
+  exact Equiv.trans h1 h2
 
 /-- There is only one equivalence between any two structures obeying the Peano axioms. -/
 theorem Equiv.uniq {P Q : PeanoAxioms} (equiv1 equiv2 : PeanoAxioms.Equiv P Q) :
@@ -269,11 +272,46 @@ theorem Equiv.uniq {P Q : PeanoAxioms} (equiv1 equiv2 : PeanoAxioms.Equiv P Q) :
   obtain ⟨equiv2, equiv_zero2, equiv_succ2⟩ := equiv2
   congr
   ext n
-  sorry
+  exact P.induction (fun n ↦ equiv1 n = equiv2 n) (by {
+    simp [equiv_zero1, equiv_zero2]
+  }) (by {
+    simp
+    intro i IH
+    simp [equiv_succ1, equiv_succ2, IH]
+  }) n
+
+noncomputable abbrev nat_recurse_internal {P : PeanoAxioms} (f: P.Nat → P.Nat → P.Nat) (c: P.Nat) (n: ℕ) : ℕ :=
+  let e := Equiv.symm (Equiv.fromNat P);
+  match n with
+    | 0 => e.equiv c
+    | n + 1 => e.equiv (f (e.equiv.symm n) (e.equiv.symm (nat_recurse_internal f c n)))
 
 /-- A sample result: recursion is well-defined on any structure obeying the Peano axioms-/
 theorem Nat.recurse_uniq {P : PeanoAxioms} (f: P.Nat → P.Nat → P.Nat) (c: P.Nat) :
     ∃! (a: P.Nat → P.Nat), a P.zero = c ∧ ∀ n, a (P.succ n) = f n (a n) := by
-  sorry
+  -- I don't think it's possible to define a function using PeanoAxioms...
+  -- But we can convert to Mathlib_Nat and use its natural recursion before converting back.
+  apply existsUnique_of_exists_of_unique
+  . set e := Equiv.symm (Equiv.fromNat P)
+    use fun x ↦ e.equiv.symm (nat_recurse_internal f c (e.equiv x))
+    simp
+    constructor
+    . unfold nat_recurse_internal
+      simp [Equiv.equiv_zero]
+      simp [Mathlib_Nat]
+    intro n
+    conv => lhs; unfold nat_recurse_internal
+    simp [Equiv.equiv_succ]
+    simp [Mathlib_Nat]
+  . intro f1 f2 ⟨ hf1z, hf1s ⟩ ⟨ hf2z, hf2s ⟩
+    ext x
+    have := P.induction (fun x ↦ f1 x = f2 x) (by {
+      simp [hf1z, hf2z]
+    }) (by {
+      simp
+      intro x hx
+      simp [hf1s, hf2s, hx]
+    }) x
+    exact this
 
 end PeanoAxioms
