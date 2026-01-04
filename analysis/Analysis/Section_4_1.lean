@@ -619,13 +619,36 @@ theorem Int.no_induction : ∃ P: Int → Prop, (P 0 ∧ ∀ n, P n → P (n+1))
     simp
 
 /-- A nonnegative number squared is nonnegative. This is a special case of 4.1.9 that's useful for proving the general case. --/
-lemma Int.sq_nonneg_of_pos (n:Int) (h: 0 ≤ n) : 0 ≤ n*n := by sorry
+lemma Int.sq_nonneg_of_pos (n:Int) (h: 0 ≤ n) : 0 ≤ n*n := by
+  rw [le_iff] at *
+  obtain ⟨ x, hx ⟩ := h
+  use x*x
+  simp at hx
+  simp [hx]
 
 /-- Exercise 4.1.9. The square of any integer is nonnegative. -/
-theorem Int.sq_nonneg (n:Int) : 0 ≤ n*n := by sorry
+theorem Int.sq_nonneg (n:Int) : 0 ≤ n*n := by
+  obtain h | h | h := Int.trichotomous' n 0
+  . rw [gt_iff_lt] at h
+    obtain ⟨ h, _ ⟩ := h
+    exact sq_nonneg_of_pos n h
+  . rw [lt_iff_exists_positive_difference] at h
+    obtain ⟨ x, hx1, hx2 ⟩ := h
+    use x*x
+    have hn : n = -x
+    . calc
+        n = n + x - x := by ring
+        _ = 0 - x := by rw [hx2]
+        _ = _ := by ring
+    simp [hn]
+  . use 0
+    simp [h]
 
 /-- Exercise 4.1.9 -/
-theorem Int.sq_nonneg' (n:Int) : ∃ (m:Nat), n*n = m := by sorry
+theorem Int.sq_nonneg' (n:Int) : ∃ (m:Nat), n*n = m := by
+  obtain ⟨ x, hx ⟩ := Int.sq_nonneg n
+  use x
+  simp [hx]
 
 /--
   Not in textbook: create an equivalence between Int and ℤ.
@@ -633,16 +656,91 @@ theorem Int.sq_nonneg' (n:Int) : ∃ (m:Nat), n*n = m := by sorry
 -/
 abbrev Int.equivInt : Int ≃ ℤ where
   toFun := Quotient.lift (fun ⟨ a, b ⟩ ↦ a - b) (by
-    sorry)
-  invFun := sorry
-  left_inv n := sorry
-  right_inv n := sorry
+    simp
+    intro a b h
+    change a.minuend + b.subtrahend = b.minuend + a.subtrahend at h
+    linarith)
+  invFun := fun z ↦ match z with | Int.ofNat n => (n:Int) | Int.negSucc n => -((n.succ):Int)
+  left_inv n := by {
+    obtain ⟨ a, b, rfl ⟩ := eq_diff n
+    simp
+    obtain h | h |h := Int.trichotomous (a —— b)
+    . simp only [ofNat_eq, eq] at h
+      have : (a:ℤ) - b = 0 := by linarith
+      simp [this]
+      simp only [ofNat_eq, eq]
+      simp [h]
+    . obtain ⟨ x, hx1, hx2 ⟩ := h
+      simp only [natCast_eq, eq] at hx2
+      have : (a:ℤ) - b = x := by linarith
+      simp [this]
+      simp only [natCast_eq, eq]
+      simp [hx2]
+    . obtain ⟨ x, hx1, hx2 ⟩ := h
+      match x with
+      | 0 => linarith
+      | x + 1 => {
+        simp only [natCast_eq, neg_eq, eq] at hx2
+        have : (a:ℤ) - b = Int.negSucc x
+        . have : -x.succ = Int.negSucc x
+          . rfl
+          simp [← this]
+          linarith
+        simp [this]
+        simp only [natCast_eq, neg_eq, ofNat_eq, add_eq, eq]
+        linarith
+      }
+  }
+  right_inv n := by {
+    simp
+    match n with
+    | .ofNat n => {
+      simp
+      simp only [natCast_eq]
+      rfl
+    }
+    | .negSucc n => {
+      simp
+      simp only [natCast_eq, ofNat_eq, neg_eq, add_eq]
+      simp
+      have : -(n:ℤ) + -1 = -(n.succ:ℤ) := by omega
+      rw [this]
+      rfl
+    }
+  }
 
 /-- Not in textbook: equivalence preserves order and ring operations -/
 abbrev Int.equivInt_ordered_ring : Int ≃+*o ℤ where
   toEquiv := equivInt
-  map_add' := by sorry
-  map_mul' := by sorry
-  map_le_map_iff' := by sorry
+  map_add' := by {
+    intro x y
+    obtain ⟨ a, b, rfl ⟩ := eq_diff x
+    obtain ⟨ c, d, rfl ⟩ := eq_diff y
+    simp [add_eq]
+    ring
+  }
+  map_mul' := by {
+    intro x y
+    obtain ⟨ a, b, rfl ⟩ := eq_diff x
+    obtain ⟨ c, d, rfl ⟩ := eq_diff y
+    simp [mul_eq]
+    ring
+  }
+  map_le_map_iff' := by {
+    intro a b
+    obtain ⟨ x1, y1, rfl ⟩ := eq_diff a
+    obtain ⟨ x2, y2, rfl ⟩ := eq_diff b
+    simp
+    simp only [le_iff, natCast_eq, add_eq, eq]
+    simp
+    constructor <;> intro h
+    . have : x2 + y1 ≥ x1 + y2 := by omega
+      rw [ge_iff_le, le_iff_exists_add] at this
+      obtain ⟨ x, hx ⟩ := this
+      use x
+      linarith
+    . obtain ⟨ x, hx ⟩ := h
+      omega
+  }
 
 end Section_4_1
