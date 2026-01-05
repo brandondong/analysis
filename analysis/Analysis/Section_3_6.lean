@@ -274,8 +274,24 @@ theorem SetTheory.Set.card_erase {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_card n)
         simp [hx'f]
         unfold ι
         simp [hx']
-      . -- Otherwise y >= m0, consider x' in X where f x' = y + 1. x' != x because f x = m0.
-        sorry
+      . -- Otherwise y >= m0, consider x' in X where f x' = y + 1.
+        set y' := (y:ℕ) + 1
+        have hy' : (y':Object) ∈ (Fin (n)) := by sorry
+        specialize hfs ⟨ y', hy' ⟩
+        obtain ⟨ x', hx' ⟩ := hfs
+        unfold g
+        -- x' != x because f x = m0 and f x' = y + 1 > m0.
+        have hx'2 : x'.val ∈ X'
+        . sorry
+        use ⟨ x', hx'2 ⟩
+        have hx'f : ¬ (f (ι ⟨ x', hx'2 ⟩) < m₀)
+        . sorry
+        simp [hx'f]
+        unfold ι
+        simp [hx']
+        have : (⟨ y', hy' ⟩:(Fin n)) = y'
+        . exact (Fin.coe_eq_iff ⟨↑y', hy'⟩).mp rfl
+        simp [this, y']
   use g
 
 /-- Proposition 3.6.8 (Uniqueness of cardinality) -/
@@ -616,7 +632,68 @@ theorem SetTheory.Set.card_union {X Y:Set} (hX: X.finite) (hY: Y.finite) :
 
 /-- Proposition 3.6.14 (b) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_union_disjoint {X Y:Set} (hX: X.finite) (hY: Y.finite)
-  (hdisj: Disjoint X Y) : (X ∪ Y).card = X.card + Y.card := by sorry
+  (hdisj: Disjoint X Y) : (X ∪ Y).card = X.card + Y.card := by
+  -- Induct on cardinality of X, generalizing X.
+  obtain ⟨ i, hi ⟩ := hX
+  obtain ⟨ j, hj ⟩ := hY
+  revert X
+  induction' i with i IH
+  . intro X hXd hX
+    have he : X = ∅ := by exact has_card_zero.mp hX
+    have : X ∪ Y = Y
+    . ext x
+      simp [he]
+    rw [this]
+    have : X.card = 0 := by exact card_eq_zero_of_empty he
+    simp [this]
+  intro X hXd hX
+  -- IH is for all sets of X size i, the property holds. Prove for X of size i+1.
+  -- We can consider erasure of x and use IH to show it holds.
+  have he : X ≠ ∅
+  . intro contra
+    have : X.card = i+1 := by exact has_card_to_card hX
+    have : X.card = 0 := by exact card_eq_zero_of_empty contra
+    linarith
+  replace he := nonempty_def he
+  obtain ⟨ x, hx ⟩ := he
+  set X' := X \ {x}
+  have hX' : X'.has_card i
+  . have := card_erase (by linarith) hX ⟨ x, hx ⟩
+    simp at this
+    exact this
+  have hXc : X.card = i+1 := by exact has_card_to_card hX
+  have hYc : Y.card = j := by exact has_card_to_card hj
+  have hX'c : X'.card = i := by exact has_card_to_card hX'
+  have hX'd : Disjoint X' Y
+  . simp [disjoint_iff, SetTheory.Set.ext_iff] at hXd ⊢
+    intro x hx
+    have hx2 : x ∈ X
+    . simp [X'] at hx
+      tauto
+    exact hXd x hx2
+  specialize IH hX'd hX'
+  -- Then x is not in X' or Y so we can use card_insert to get the relation.
+  have hX'f : (X' ∪ Y).finite
+  . have h1 : X'.finite := by use i
+    have h2 : Y.finite := by use j
+    exact (card_union h1 h2).1
+  have hx2 : x ∉ (X' ∪ Y)
+  . intro contra
+    simp at contra
+    rw [disjoint_iff] at hXd
+    simp [SetTheory.Set.ext_iff] at hXd
+    specialize hXd x hx
+    obtain contra | contra := contra
+    . simp [X'] at contra
+    . contradiction
+  have h_ins := (card_insert hX'f hx2).2
+  have he : X' ∪ Y ∪ {x} = X ∪ Y
+  . ext x'
+    simp [X']
+    by_cases hx' : x' = x <;> simp [hx']
+    . tauto
+  rw [← he, h_ins]
+  linarith
 
 #check SetTheory.Set.card_erase
 
@@ -703,7 +780,81 @@ theorem SetTheory.Set.card_subset {X Y:Set} (hX: X.finite) (hY: Y ⊆ X) :
 
 /-- Proposition 3.6.14 (c) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_ssubset {X Y:Set} (hX: X.finite) (hY: Y ⊂ X) :
-    Y.card < X.card := by sorry
+    Y.card < X.card := by
+  obtain ⟨ n, hn ⟩ := hX
+  revert X Y
+  -- Induct on the cardinality of X.
+  induction' n with i IH
+  . intro X Y hYX hX
+    have : X = ∅ := by exact has_card_zero.mp hX
+    simp [this] at hYX
+    obtain ⟨ h1, h2 ⟩ := hYX
+    contrapose! h2
+    ext y
+    simp
+    intro h
+    have := h1 y h
+    simp at this
+  intro X Y hYX hX
+  -- IH is for all sets of X size i, the subset relation holds. Prove for X of size i+1.
+  -- Consider Y-y and X-y in IH (case where Y is empty is trivial).
+  have hXc : X.card = i+1 := by exact has_card_to_card hX
+  by_cases hY : Y = ∅
+  . have : Y.card = 0 := by exact card_eq_zero_of_empty hY
+    linarith
+  have h := nonempty_def hY
+  obtain ⟨ y, hyY ⟩ := h
+  have hyX : y ∈ X
+  . exact hYX.1 y hyY
+  set X' := X \ {y}
+  set Y' := Y \ {y}
+  have hY'X' : Y' ⊂ X'
+  . obtain ⟨ h1, h2 ⟩ := hYX
+    simp [Y', X']
+    constructor
+    . intro y' hy'
+      simp at hy' ⊢
+      constructor
+      . exact h1 y' hy'.1
+      . tauto
+    . contrapose! h2
+      simp [SetTheory.Set.ext_iff] at h2 ⊢
+      intro x
+      specialize h2 x
+      by_cases h : x = y
+      . simp [h]
+        tauto
+      . tauto
+  have hX' : X'.has_card i
+  . have hi : i+1 ≥ 1 := by linarith
+    have he := SetTheory.Set.card_erase hi hX ⟨ y, hyX ⟩
+    simp at he
+    exact he
+  specialize IH hY'X' hX'
+  have hX'f : X'.finite := by (use i)
+  have hY'f : Y'.finite
+  . exact (card_subset hX'f hY'X'.1).1
+  have hY'f2 := hY'f
+  obtain ⟨ j, hY' ⟩ := hY'f2
+  have hY'c : Y'.card = j := by exact has_card_to_card hY'
+  have hX'c : X'.card = i := by exact has_card_to_card hX'
+  have hyY' : y ∉ Y' := by {
+    unfold Y'
+    simp
+  }
+  have hY'Y : Y' ∪ {y} = Y := by {
+    unfold Y'
+    ext y'
+    simp
+    by_cases hy' : y' = y
+    . simp [hy', hyY]
+    . simp [hy']
+  }
+  -- Then use card_insert on that result to get relation of X/Y.
+  have hY2 : Y.card = (j+1)
+  . have hIns := (card_insert (hY'f) hyY').2
+    rwa [hY'Y, hY'c] at hIns
+  linarith
 
 /-- Proposition 3.6.14 (d) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_image {X Y:Set} (hX: X.finite) (f: X → Y) :

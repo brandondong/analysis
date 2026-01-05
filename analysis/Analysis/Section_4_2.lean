@@ -45,9 +45,34 @@ structure PreRat where
 instance PreRat.instSetoid : Setoid PreRat where
   r a b := a.numerator * b.denominator = b.numerator * a.denominator
   iseqv := {
-    refl := by sorry
-    symm := by sorry
-    trans := by sorry
+    refl := by {
+      intro x
+      simp
+    }
+    symm := by {
+      intro x y h
+      simp [h]
+    }
+    trans := by {
+      intro⟨ a,b,_ ⟩ ⟨ c,d,hd ⟩ ⟨ e,f,_ ⟩ h1 h2; simp_all
+      -- Multiply both equations and cancel.
+      have h3 := congrArg₂ (· * ·) h1 h2; simp at h3
+      have h4 : (c * d) * (a * f) = (c * d) * (e * b) := by linarith
+      -- d is not zero but c might be...
+      by_cases hc : c = 0
+      . have ha : a = 0
+        . simp [hc] at h1
+          tauto
+        have he : e = 0
+        . simp [hc] at h2
+          tauto
+        simp [ha, he]
+      have hcd : c * d ≠ 0
+      . contrapose! hd
+        rw [mul_eq_zero] at hd
+        tauto
+      exact mul_left_cancel₀ hcd h4
+    }
     }
 
 @[simp]
