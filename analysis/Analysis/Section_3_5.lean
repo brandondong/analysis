@@ -1266,66 +1266,159 @@ theorem SetTheory.Set.powerset_axiom' (X Y:Set) :
     specialize hS' f
     tauto
 
+-- Extra convenience theorems because I don't know how to work with the existing ones...
+theorem SetTheory.Set.mem_Fin2 {n1 n2:ℕ} (x:Fin n1) (h:n1 < n2) : x.val ∈ Fin n2 := by
+  have hx := x.2
+  rw [mem_Fin] at *
+  obtain ⟨ x', hx', hx'2 ⟩ := hx
+  use x'
+  constructor
+  . omega
+  . exact hx'2
+
+theorem SetTheory.Set.mem_Fin3 {n1 n2:ℕ} (h:n1 < n2) : (n1:Object) ∈ Fin n2 := by
+  rw [mem_Fin]
+  use n1
+
+theorem SetTheory.Set.mem_Fin4 {n1:nat} {n2:ℕ} (h:(n1:ℕ) < n2) : (n1:Object) ∈ Fin n2 := by
+  rw [mem_Fin]
+  use n1
+  simp [h]
+
+theorem SetTheory.Set.fin_eq {i n:ℕ} (hi : (i:Object) ∈ Fin n) : ↑(⟨↑(i), hi⟩:Fin n) = i := by
+  exact (Fin.coe_eq_iff ⟨↑i, hi⟩).mp rfl
+
 /-- Exercise 3.5.12, with errata from web site incorporated -/
 theorem SetTheory.Set.recursion (X: Set) (f: nat → X → X) (c:X) :
-    -- Prove for Fin n for all n.
-    -- Then define a function that instantiates the exist with a choose.
     ∃! a: nat → X, a 0 = c ∧ ∀ n, a (n + 1:ℕ) = f n (a n) := by
-  have h_bounded : ∀ n': ℕ, ∃ a: Fin (n'+1) → X, a ⟨ 0, by {
-    rw [mem_Fin]
-    use 0
-    simp
-    rfl
-  } ⟩ = c ∧ ∀ n, (hi: n < n') → a ⟨ (n + 1:ℕ), by {
-    rw [mem_Fin]
-    use n+1
-    simp [hi]
-  } ⟩ = f n (a ⟨ n, by {
-    rw [mem_Fin]
-    use n
-    simp
-    linarith
-  } ⟩)
-  . intro n
-    induction' n with i IH
-    . use fun _ ↦ c
-      simp
-    obtain ⟨ a, ha, ha2 ⟩ := IH
-    use fun n ↦ if hn: n ≤ i then a (⟨ n, sorry ⟩) else f sorry (a (⟨ sorry, sorry ⟩))
-    sorry
-  set a: nat → X := fun n ↦ (h_bounded (n+5)).choose ⟨ n, by {
-    rw [mem_Fin]
-    use n
-    simp
-    linarith
-  } ⟩
-  have ha : a 0 = c ∧ ∀ (n : ℕ), a ↑(n + 1) = f (↑n) (a ↑n)
-  . constructor
-    . unfold a
-      set c := h_bounded (nat_equiv.symm 0 + 5)
-      have hc := c.choose_spec
-      tauto
+  have nat_coe_eq {m:nat} {n} : (m:ℕ) = n → m = n := by aesop
+  have nat_coe_eq_zero {m:nat} : (m:ℕ) = 0 → m = 0 := nat_coe_eq
+  have nat_zero_obj : (0:nat) = (0:Object) := by simp
+  apply existsUnique_of_exists_of_unique
+  . -- Prove exists unique for Fin n for all n.
+    have h_bounded : ∀ n: ℕ, ∃! a: Fin (n+1) → X, a ⟨ 0, by apply mem_Fin3; simp ⟩ = c ∧
+      ∀ n', (hn': n' < n) → a ⟨ (n' + 1:ℕ), by apply mem_Fin3; omega ⟩ = f n' (a ⟨ n', by apply mem_Fin3; omega ⟩)
+    . intro n
+      apply existsUnique_of_exists_of_unique
+      . -- Induction on n, each successive function can be defined from the previous.
+        induction' n with n IH
+        . use fun x ↦ c
+          simp
+        obtain ⟨ a, haz, has ⟩ := IH
+        -- Define a new function which uses IH except for last element.
+        use fun x ↦ if hx: (x < n+1) then a ⟨ x, by {
+          rw [mem_Fin]
+          use x, hx
+          simp
+        } ⟩ else f ((x:ℕ)-(1:ℕ)) (a ⟨ ((x:ℕ)-(1:ℕ)), by {
+          apply mem_Fin3
+          simp at hx
+          have hx2 := x.2
+          rw [mem_Fin] at hx2
+          obtain ⟨ x', hx', hx'2 ⟩ := hx2
+          have : (x:ℕ) = x'
+          . simp at hx'2
+            exact hx'2
+          simp [this]
+          omega
+        } ⟩)
+        simp
+        constructor
+        . exact haz
+        intro n' hn'
+        have hn'2 : ↑n' ∈ Fin (n + 1 + 1) := by apply mem_Fin3; omega
+        have hn'3 : (⟨ (n':Object), hn'2 ⟩:Fin (n + 1 + 1)) < n + 1
+        . simp [fin_eq, hn']
+        simp [hn', hn'3]
+        by_cases hn'4: n' < n <;> simp [hn'4]
+        . specialize has n' hn'4
+          simp [has]
+      intro f1 f2 ⟨ hf1z, hf1s ⟩ ⟨ hf2z, hf2s ⟩
+      rw [funext_iff]
+      intro x
+      -- Induct on the Fin argument.
+      induction' hx: (x:ℕ) with i IH generalizing x
+      . have hx2 : x = ⟨ 0, by apply mem_Fin3; simp ⟩
+        . simp [hx]
+        simp [hx2, hf1z, hf2z]
+      have hi : i < n
+      . have hx2 := x.2
+        rw [mem_Fin] at hx2
+        obtain ⟨ x', hx', hx'2 ⟩ := hx2
+        have hx'3 : x' = i + 1
+        . simp [← hx]
+          symm
+          exact (Fin.coe_eq_iff x).mp hx'2
+        omega
+      specialize IH ⟨ i, by apply mem_Fin3; omega ⟩ (by apply fin_eq)
+      specialize hf1s i hi
+      specialize hf2s i hi
+      have hx2 : x = ⟨ ((i + 1:ℕ):Object), by apply mem_Fin3; omega ⟩
+      . simp [hx]
+        symm
+        apply fin_eq
+      simp [hx2, hf1s, hf2s, IH]
+    -- Then define a function that instantiates the exist with a choose.
+    use fun n ↦ (h_bounded n).choose ⟨ n, by apply mem_Fin4; simp ⟩
+    constructor
+    . set a := h_bounded (nat_equiv.symm 0)
+      have ha := a.choose_spec.1.1
+      simp [nat_zero_obj, ha]
     intro n
-    unfold a
-    set c := h_bounded (nat_equiv.symm ↑(n + 1) + 5)
-    set d := h_bounded (nat_equiv.symm ↑(n) + 5)
-    have hc := c.choose_spec.2
-    have hc2 := hc n (by sorry)
-    simp [hc2]
-    have helper : ∀ n', (hn: n' ≤ n) → c.choose ⟨ n', by sorry ⟩ = d.choose ⟨ n', by sorry ⟩
-    . intro n'
-      induction' n' with i hi
-      . sorry
-      sorry
-    specialize helper n (by linarith)
-    rw [helper]
-  apply ExistsUnique.intro a
-  . exact ha
-  . intro a' ha'
-    ext n
-    induction' hx1: (n:ℕ) with i hi generalizing n
-    . sorry
-    sorry
+    set a1 := h_bounded (nat_equiv.symm ↑(n + 1))
+    have ha1 := a1.choose_spec.1
+    simp at ha1
+    obtain ⟨ ha1z, ha1s ⟩ := ha1
+    have ha1n := ha1s n (by omega)
+    simp [ha1n]; clear ha1n
+    set a2 := h_bounded (nat_equiv.symm ↑n)
+    have ha2 := a2.choose_spec.1
+    simp at ha2
+    obtain ⟨ ha2z, ha2s ⟩ := ha2
+    suffices goal : (Exists.choose a1 ⟨ n, by apply mem_Fin3; simp; omega ⟩) = (Exists.choose a2 ⟨ n, by apply mem_Fin3; simp ⟩)
+    . simp [goal]
+    set a1c := Exists.choose a1
+    set a2c := Exists.choose a2
+    -- Need to prove two sequences are equal up to n. Induction again.
+    -- Too noisy with exists...
+    have : ∀ (n : ℕ) (a1c:(Fin (nat_equiv.symm ↑(n + 1) + 1)) → X) (a2c:(Fin (nat_equiv.symm ↑n + 1)) → X),
+      (a1c ⟨ 0, by apply mem_Fin3; simp ⟩ = c ∧ a2c ⟨ 0, by apply mem_Fin3; simp ⟩ = c ∧
+      (∀ n', (hn':n' < n + 1) → a1c ⟨↑(n' + 1), by apply mem_Fin3; simp; omega ⟩ = f (↑n') (a1c ⟨↑n', by apply mem_Fin3; simp; omega ⟩)) ∧
+      ∀ n', (hn':n' < n) → a2c ⟨↑(n' + 1), by apply mem_Fin3; simp; omega ⟩ = f (↑n') (a2c ⟨↑n', by apply mem_Fin3; simp; omega ⟩)) → a1c ⟨↑n, by apply mem_Fin3; simp; omega ⟩ = a2c ⟨↑n, by apply mem_Fin3; simp ⟩
+    . clear ha2s ha1s ha2z ha1z a1c a2c a1 a2 n
+      intro n a1c a2c ⟨ ha1z, ha2z, ha1s, ha2s ⟩
+      induction' n with n IH
+      . simp [← SetTheory.Object.ofnat_eq', ha1z, ha2z]
+      -- Use IH by defining identical a1c'/a2c' with new domains.
+      specialize IH (fun x ↦ a1c ⟨ x, by apply mem_Fin2; simp ⟩) (fun x ↦ a2c ⟨ x, by apply mem_Fin2; simp ⟩)
+        (by simp [ha1z]) (by simp [ha2z]) (by {
+          intro n' hn'
+          simp
+          specialize ha1s n' (by omega)
+          simp [ha1s]
+        }) (by {
+          intro n' hn'
+          simp
+          specialize ha2s n' (by omega)
+          simp [ha2s]
+        })
+      specialize ha1s n (by omega)
+      specialize ha2s n (by omega)
+      simp [ha1s, ha2s]
+      simp [IH]
+    exact this n a1c a2c (by {
+      use ha1z
+    })
+  intro f1 f2 ⟨ hf1z, hf1s ⟩ ⟨ hf2z, hf2s ⟩
+  rw [funext_iff]
+  intro x
+  -- Induction again, what else.
+  induction' hx: (x:ℕ) with i ih generalizing x
+  . have hx2 := nat_coe_eq_zero hx
+    simp [hx2, hf1z, hf2z]
+  specialize ih i (by simp)
+  have hx2 := nat_coe_eq hx
+  simp [hx2, hf1s, hf2s, ih]
 
 /-- Exercise 3.5.13 -/
 theorem SetTheory.Set.nat_unique (nat':Set) (zero:nat') (succ:nat' → nat')
