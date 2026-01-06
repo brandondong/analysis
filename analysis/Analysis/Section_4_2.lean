@@ -103,7 +103,23 @@ theorem Rat.eq_diff (n:Rat) : ∃ a b, b ≠ 0 ∧ n = a // b := by
   may be more convenient to avoid that operation and work directly with the `Quotient` API.
 -/
 instance Rat.decidableEq : DecidableEq Rat := by
-  sorry
+  intro a b
+  have : ∀ (n:PreRat) (m: PreRat),
+      Decidable (Quotient.mk PreRat.instSetoid n = Quotient.mk PreRat.instSetoid m)
+  . intro ⟨ a,b,hb ⟩ ⟨ c,d,hd ⟩
+    -- We're trying to prove equality of Quotient.mk ⟨ a,b,h ⟩ = ... is decidable.
+    -- Quotient.mk ⟨ a,b,h ⟩ is just a // b???
+    set q1 := Quotient.mk PreRat.instSetoid ⟨ a,b,hb ⟩
+    set q2 := Quotient.mk PreRat.instSetoid ⟨ c,d,hd ⟩
+    have h1 : q1 = a // b
+    . unfold Rat.formalDiv
+      simp [hb, q1]
+    have h2 : q2 = c // d
+    . unfold Rat.formalDiv
+      simp [hd, q2]
+    rw [h1, h2, Rat.eq a c hb hd]
+    exact decEq _ _
+  exact Quotient.recOnSubsingleton₂ a b this
 
 /-- Lemma 4.2.3 (Addition well-defined) -/
 instance Rat.add_inst : Add Rat where
@@ -123,7 +139,12 @@ theorem Rat.add_eq (a c:ℤ) {b d:ℤ} (hb: b ≠ 0) (hd: d ≠ 0) :
 
 /-- Lemma 4.2.3 (Multiplication well-defined) -/
 instance Rat.mul_inst : Mul Rat where
-  mul := Quotient.lift₂ (fun ⟨ a, b, h1 ⟩ ⟨ c, d, h2 ⟩ ↦ (a*c) // (b*d)) (by sorry)
+  mul := Quotient.lift₂ (fun ⟨ a, b, h1 ⟩ ⟨ c, d, h2 ⟩ ↦ (a*c) // (b*d)) (by {
+    intro ⟨ a1, b1, hb1 ⟩ ⟨ c1, d1, hd1 ⟩ ⟨ a2, b2, hb2 ⟩ ⟨ c2, d2, hd2 ⟩ h1 h2
+    simp_all [Setoid.r]
+    have h3 := congrArg₂ (· * ·) h1 h2; simp at h3
+    linarith
+  })
 
 /-- Definition 4.2.2 (Multiplication of rationals) -/
 theorem Rat.mul_eq (a c:ℤ) {b d:ℤ} (hb: b ≠ 0) (hd: d ≠ 0) :
@@ -132,7 +153,10 @@ theorem Rat.mul_eq (a c:ℤ) {b d:ℤ} (hb: b ≠ 0) (hd: d ≠ 0) :
 
 /-- Lemma 4.2.3 (Negation well-defined) -/
 instance Rat.neg_inst : Neg Rat where
-  neg := Quotient.lift (fun ⟨ a, b, h1 ⟩ ↦ (-a) // b) (by sorry)
+  neg := Quotient.lift (fun ⟨ a, b, h1 ⟩ ↦ (-a) // b) (by {
+    intro ⟨ a, b, hb ⟩ ⟨ c, d, hd ⟩
+    simp_all [Setoid.r]
+  })
 
 /-- Definition 4.2.2 (Negation of rationals) -/
 theorem Rat.neg_eq (a:ℤ) {b:ℤ} (hb: b ≠ 0) : - (a // b) = (-a) // b := by
@@ -155,18 +179,27 @@ theorem Rat.coe_Nat_eq (n:ℕ) : (n:Rat) = n // 1 := rfl
 theorem Rat.of_Nat_eq (n:ℕ) : (ofNat(n):Rat) = (ofNat(n):Nat) // 1 := rfl
 
 /-- natCast distributes over successor -/
-theorem Rat.natCast_succ (n: ℕ) : ((n + 1: ℕ): Rat) = (n: Rat) + 1 := by sorry
+theorem Rat.natCast_succ (n: ℕ) : ((n + 1: ℕ): Rat) = (n: Rat) + 1 := by
+  simp [coe_Nat_eq, of_Nat_eq, add_eq]
 
 /-- intCast distributes over addition -/
-lemma Rat.intCast_add (a b:ℤ) : (a:Rat) + (b:Rat) = (a+b:ℤ) := by sorry
+lemma Rat.intCast_add (a b:ℤ) : (a:Rat) + (b:Rat) = (a+b:ℤ) := by
+  simp [coe_Int_eq, add_eq]
 
 /-- intCast distributes over multiplication -/
-lemma Rat.intCast_mul (a b:ℤ) : (a:Rat) * (b:Rat) = (a*b:ℤ) := by sorry
+lemma Rat.intCast_mul (a b:ℤ) : (a:Rat) * (b:Rat) = (a*b:ℤ) := by
+  simp [coe_Int_eq, mul_eq]
 
 /-- intCast commutes with negation -/
 lemma Rat.intCast_neg (a:ℤ) : - (a:Rat) = (-a:ℤ) := rfl
 
-theorem Rat.coe_Int_inj : Function.Injective (fun n:ℤ ↦ (n:Rat)) := by sorry
+theorem Rat.coe_Int_inj : Function.Injective (fun n:ℤ ↦ (n:Rat)) := by
+  intro x1 x2 h
+  simp only [coe_Int_eq] at h
+  have : (1:ℤ) ≠ 0 := by norm_num
+  have := Rat.eq x1 x2 this this
+  simp [h] at this
+  exact this
 
 /--
   Whereas the book leaves the inverse of 0 undefined, it is more convenient in Lean to assign a
@@ -174,7 +207,20 @@ theorem Rat.coe_Int_inj : Function.Injective (fun n:ℤ ↦ (n:Rat)) := by sorry
 -/
 instance Rat.instInv : Inv Rat where
   inv := Quotient.lift (fun ⟨ a, b, h1 ⟩ ↦ b // a) (by
-    sorry -- hint: split into the `a=0` and `a≠0` cases
+    intro ⟨ a, b, hb ⟩ ⟨ c, d, hd ⟩ h
+    simp_all [Setoid.r]
+    -- hint: split into the `a=0` and `a≠0` cases
+    by_cases ha : a = 0 <;> simp [ha]
+    . have hc : c = 0
+      . simp [ha] at h
+        tauto
+      simp [hc]
+    . have hc : ¬ c = 0
+      . contrapose! ha
+        simp [ha] at h
+        tauto
+      simp [hc]
+      linarith
 )
 
 lemma Rat.inv_eq (a:ℤ) {b:ℤ} (hb: b ≠ 0) : (a // b)⁻¹ = b // a := by
