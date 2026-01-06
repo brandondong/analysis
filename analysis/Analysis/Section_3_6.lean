@@ -237,6 +237,9 @@ theorem SetTheory.Set.card_erase {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_card n)
   rw [has_card_iff] at hX; choose f hf using hX
   set X' : Set := X \ {x.val}
   set ι : X' → X := fun ⟨y, hy⟩ ↦ ⟨ y, by aesop ⟩
+  have x_helper (x':X) (hx': ¬ x' = x) : x'.val ∈ X'
+  . simp [X', coe_inj, hx']
+    exact Subtype.property _
   observe hι : ∀ x:X', (ι x:Object) = x
   choose m₀ hm₀ hm₀f using (mem_Fin _ _).mp (f x).property
   set g : X' → Fin (n-1) := fun x' ↦
@@ -253,39 +256,91 @@ theorem SetTheory.Set.card_erase {n:ℕ} (h: n ≥ 1) {X:Set} (hX: X.has_card n)
     constructor
     . intro x1 x2 h
       -- f x != m0 due to injectivity.
+      have fx_helper (x': X') : f (ι x') ≠ m₀
+      . intro contra
+        simp at hm₀f
+        rw [← hm₀f, ← Fin.coe_inj] at contra
+        specialize hfi contra
+        have h := x'.2
+        simp [X'] at h
+        simp [ι] at hfi
+        contrapose! h; intro _
+        symm
+        symm at hfi
+        simp [hfi]
       -- Split on f x and consider both branches which are ultimately f x with/without subtraction.
       -- f is injective and so we can cancel that as long as we can prove f x is > 0 (f x > m0).
       -- Branch mismatch case (f x1 < m0, f x2 > m0) contradicts original assumption of equality of g.
-      sorry
+      simp [g] at h
+      have branch_helper (x1 x2 : X') (h1: (f (ι x1)) < m₀) (h2: ¬↑(f (ι x2)) < m₀) (h: ((f (ι x1)):ℕ) = ↑(f (ι x2)) - 1) : False
+      . contrapose! h2
+        have := fx_helper x2
+        omega
+      by_cases h1 : (f (ι x1)) < m₀ <;> by_cases h2 : (f (ι x2)) < m₀ <;> simp [h1, h2] at h
+      . rw [← Fin.coe_inj] at h
+        specialize hfi h
+        simp [ι, coe_inj] at hfi
+        exact hfi
+      . have := branch_helper x1 x2 h1 h2 h
+        contradiction
+      . have := branch_helper x2 x1 h2 h1 h.symm
+        tauto
+      . simp at h1 h2
+        have := fx_helper x1
+        have := fx_helper x2
+        have h : ((f (ι x1)):ℕ) = ↑(f (ι x2)) := by omega
+        rw [← Fin.coe_inj] at h
+        specialize hfi h
+        simp [ι, coe_inj] at hfi
+        exact hfi
     . intro y
       have hy : y.val ∈ (Fin n)
-      . sorry
+      . apply mem_Fin2
+        omega
       by_cases hy2 : y < m₀
       . -- If y < m0, consider x' in X where f x' = y.
         specialize hfs ⟨ y, hy ⟩
         obtain ⟨ x', hx' ⟩ := hfs
         -- x' != x because f x = m0.
         have hx'2 : x'.val ∈ X'
-        . sorry
+        . apply x_helper
+          intro contra
+          rw [contra] at hx'
+          simp [hx'] at hm₀f
+          omega
         use ⟨ x', hx'2 ⟩
         unfold g
         have hx'f : f (ι ⟨ x', hx'2 ⟩) < m₀
-        . sorry
+        . simp [ι, hx', hy2]
         simp [hx'f]
         unfold ι
         simp [hx']
       . -- Otherwise y >= m0, consider x' in X where f x' = y + 1.
+        simp at hy2
         set y' := (y:ℕ) + 1
-        have hy' : (y':Object) ∈ (Fin (n)) := by sorry
+        have hy' : (y':Object) ∈ (Fin (n))
+        . apply mem_Fin3
+          simp [y']
+          have hy3 := y.2
+          rw [mem_Fin] at hy3
+          obtain ⟨ x, hx, hx2 ⟩ := hy3
+          simp at hx2
+          rw [hx2]
+          omega
         specialize hfs ⟨ y', hy' ⟩
         obtain ⟨ x', hx' ⟩ := hfs
         unfold g
         -- x' != x because f x = m0 and f x' = y + 1 > m0.
         have hx'2 : x'.val ∈ X'
-        . sorry
+        . apply x_helper
+          intro contra
+          rw [contra] at hx'
+          simp [hx', y'] at hm₀f
+          omega
         use ⟨ x', hx'2 ⟩
         have hx'f : ¬ (f (ι ⟨ x', hx'2 ⟩) < m₀)
-        . sorry
+        . simp [ι, hx', fin_eq, y']
+          omega
         simp [hx'f]
         unfold ι
         simp [hx']
@@ -858,11 +913,156 @@ theorem SetTheory.Set.card_ssubset {X Y:Set} (hX: X.finite) (hY: Y ⊂ X) :
 
 /-- Proposition 3.6.14 (d) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_image {X Y:Set} (hX: X.finite) (f: X → Y) :
-    (image f X).finite ∧ (image f X).card ≤ X.card := by sorry
+    (image f X).finite ∧ (image f X).card ≤ X.card := by
+  -- Induction on cardinality of X.
+  obtain ⟨ n, hX ⟩ := hX
+  revert X
+  induction' n with i IH
+  . intro X f hX
+    have : (image f X) = ∅
+    . have hXe : X = ∅ := by exact has_card_zero.mp hX
+      ext x
+      simp [hXe]
+    simp [this]
+  intro X f hX
+  -- IH: Assume holds for all X of size n, prove for set of size n+1.
+  -- Consider X' = X \ {x}. We can create f' off of f.
+  have hXc : X.card = i + 1 := by exact has_card_to_card hX
+  have hXe : X ≠ ∅
+  . intro contra
+    have : X.card = 0 := by exact card_eq_zero_of_empty contra
+    omega
+  obtain ⟨ x, hx ⟩ := nonempty_def hXe
+  set X' := X \ {x}
+  have hX' : X'.has_card i
+  . have := card_erase (by omega) hX ⟨ x, hx ⟩
+    simp at this
+    simp [X', this]
+  have hX'c : X'.card = i := by exact has_card_to_card hX'
+  set f':X' → Y := fun x ↦ f ⟨ x, by {
+    have hx := x.2
+    simp [X'] at hx
+    tauto
+  } ⟩
+  -- From IH, |image f' X'| <= |X'|
+  specialize IH f' hX'
+  -- No matter what f x is, relation will still hold for f and X.
+  by_cases h : (f ⟨ x, hx ⟩).val ∈ image f' X'
+  . -- Case 1: f x is already in image f' X'. Then the two images are equal.
+    have : image f X = image f' X'
+    . ext y
+      constructor <;> intro hy
+      . simp at hy
+        obtain ⟨ x', ⟨ hx', hfx' ⟩ ⟩ := hy
+        by_cases hx'2 : x' = x
+        . simp only [← hx'2, hfx'] at h
+          exact h
+        . simp
+          use x', (by simp [X']; tauto)
+      . simp at hy ⊢
+        obtain ⟨ x', ⟨ hx', hfx' ⟩ ⟩ := hy
+        use x', (by simp [X'] at hx'; tauto)
+    simp [this]
+    use IH.1
+    omega
+  . -- Case 2: Use card_insert.
+    have h_ins := card_insert IH.1 h
+    have : image f X = (image f' X' ∪ {↑(f ⟨x, hx⟩)})
+    . ext y
+      constructor <;> intro hy
+      . simp at hy
+        obtain ⟨ x', ⟨ hx', hfx' ⟩ ⟩ := hy
+        simp
+        by_cases hx'2 : x' = x
+        . right
+          simp [← hx'2, hfx']
+        . left
+          use x', (by simp [X']; tauto)
+      . simp at hy ⊢
+        obtain hy | hy := hy
+        . obtain ⟨ x', ⟨ hx', hfx' ⟩ ⟩ := hy
+          use x', (by simp [X'] at hx'; tauto)
+        . use x, hx
+          simp [hy]
+    simp [this]
+    use h_ins.1
+    omega
 
 /-- Proposition 3.6.14 (d) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_image_inj {X Y:Set} (hX: X.finite) {f: X → Y}
-  (hf: Function.Injective f) : (image f X).card = X.card := by sorry
+  (hf: Function.Injective f) : (image f X).card = X.card := by
+  -- Induct on cardinality of X.
+  obtain ⟨ n, hX ⟩ := hX
+  revert X
+  induction' n with i IH
+  . intro X f hfi hX
+    have : (image f X) = ∅
+    . have hXe : X = ∅ := by exact has_card_zero.mp hX
+      ext x
+      simp [hXe]
+    simp [this]
+    have : X.card = 0 := by exact has_card_to_card hX
+    simp [this]
+  intro X f hfi hX
+  -- IH: Assume holds for all X of size n, prove for set of size n+1.
+  -- Consider X' = X \ {x}. We can create f' off of f.
+  have hXc : X.card = i + 1 := by exact has_card_to_card hX
+  have hXe : X ≠ ∅
+  . intro contra
+    have : X.card = 0 := by exact card_eq_zero_of_empty contra
+    omega
+  obtain ⟨ x, hx ⟩ := nonempty_def hXe
+  set X' := X \ {x}
+  have hX' : X'.has_card i
+  . have := card_erase (by omega) hX ⟨ x, hx ⟩
+    simp at this
+    simp [X', this]
+  have hX'c : X'.card = i := by exact has_card_to_card hX'
+  set f':X' → Y := fun x ↦ f ⟨ x, by {
+    have hx := x.2
+    simp [X'] at hx
+    tauto
+  } ⟩
+  have hf'i : Function.Injective f'
+  . intro x1 x2 h
+    simp [f'] at h
+    specialize hfi h
+    simp [coe_inj] at hfi
+    exact hfi
+  specialize IH hf'i hX'
+  have hf' : (f ⟨x, hx⟩).val ∉ image f' X'
+  . intro contra
+    simp [f'] at contra
+    obtain ⟨ x', hx', h ⟩ := contra
+    simp [coe_inj] at h
+    specialize hfi h
+    simp [X'] at hx'
+    contrapose! hx'; intro _
+    simp at hfi
+    exact hfi
+  have hif : (image f' X').finite
+  . have h : X'.finite := by use i
+    exact (card_image h f').1
+  have h_ins := card_insert hif hf'
+  have : (image f X) = (image f' X' ∪ {↑(f ⟨x, hx⟩)})
+  . ext y
+    constructor <;> intro hy
+    . simp at hy
+      obtain ⟨ x', ⟨ hx', hfx' ⟩ ⟩ := hy
+      simp
+      by_cases hx'2 : x' = x
+      . right
+        simp [← hx'2, hfx']
+      . left
+        use x', (by simp [X']; tauto)
+    . simp at hy ⊢
+      obtain hy | hy := hy
+      . obtain ⟨ x', ⟨ hx', hfx' ⟩ ⟩ := hy
+        use x', (by simp [X'] at hx'; tauto)
+      . use x, hx
+        simp [hy]
+  rw [this]
+  omega
 
 /-- Proposition 3.6.14 (e) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_prod {X Y:Set} (hX: X.finite) (hY: Y.finite) :
