@@ -243,27 +243,215 @@ AddGroup.ofLeftAxioms (by
   rw [add_eq _ _ hb hd, add_eq _ _ hbd hf, add_eq _ _ hd hf,
       add_eq _ _ hb hdf, ←mul_assoc b, eq _ _ hbdf hbdf]
   ring
-)
- (by sorry) (by sorry)
+) (by {
+  intro a
+  obtain ⟨ a, b, hb, rfl ⟩ := eq_diff a
+  have : (1:ℤ) ≠ 0 := by omega
+  simp [of_Nat_eq, add_eq 0 a this hb]
+}) (by {
+  intro a
+  obtain ⟨ a, b, hb, rfl ⟩ := eq_diff a
+  simp [neg_eq a hb, add_eq (-a) a hb hb]
+  simp only [of_Nat_eq]
+  have h1 : (1:ℤ) ≠ 0 := by omega
+  have : b * b ≠ 0
+  . contrapose! hb
+    simp at hb
+    tauto
+  simp [eq _ _ this h1]
+  ring
+})
 
 /-- Proposition 4.2.4 (laws of algebra) / Exercise 4.2.3 -/
 instance Rat.instAddCommGroup : AddCommGroup Rat where
-  add_comm := by sorry
+  add_comm := by {
+    intro x y
+    obtain ⟨ a, b, hb, rfl ⟩ := eq_diff x
+    obtain ⟨ c, d, hd, rfl ⟩ := eq_diff y
+    simp only [add_eq _ _ hb hd, add_eq _ _ hd hb]
+    have h1 : b * d ≠ 0
+    . contrapose! hb
+      simp at hb
+      tauto
+    have h2 : d * b ≠ 0
+    . contrapose! h1
+      linarith
+    simp [eq _ _ h1 h2]
+    ring
+  }
 
 /-- Proposition 4.2.4 (laws of algebra) / Exercise 4.2.3 -/
 instance Rat.instCommMonoid : CommMonoid Rat where
-  mul_comm := by sorry
-  mul_assoc := by sorry
-  one_mul := by sorry
-  mul_one := by sorry
+  mul_comm := by {
+    intro x y
+    obtain ⟨ a, b, hb, rfl ⟩ := eq_diff x
+    obtain ⟨ c, d, hd, rfl ⟩ := eq_diff y
+    simp only [mul_eq _ _ hb hd, mul_eq _ _ hd hb]
+    have h1 : b * d ≠ 0
+    . contrapose! hb
+      simp at hb
+      tauto
+    have h2 : d * b ≠ 0
+    . contrapose! h1
+      linarith
+    simp [eq _ _ h1 h2]
+    ring
+  }
+  mul_assoc := by {
+    intro x y z
+    obtain ⟨ a, b, hb, rfl ⟩ := eq_diff x
+    obtain ⟨ c, d, hd, rfl ⟩ := eq_diff y
+    obtain ⟨ e, f, hf, rfl ⟩ := eq_diff z
+    simp only [mul_eq _ _ hb hd]
+    have hbd : b * d ≠ 0
+    . contrapose! hb
+      simp at hb
+      tauto
+    simp only [mul_eq _ _ hbd hf, mul_eq _ _ hd hf]
+    have hdf : d * f ≠ 0
+    . contrapose! hd
+      simp at hd
+      tauto
+    simp only [mul_eq _ _ hb hdf]
+    have hbdf : b * d * f ≠ 0
+    . contrapose! hdf
+      simp at hdf
+      tauto
+    have hbdf2 : b * (d * f) ≠ 0
+    . contrapose! hbdf
+      linarith
+    simp [eq _ _ hbdf hbdf2]
+    ring
+  }
+  one_mul := by {
+    intro x
+    obtain ⟨ a, b, hb, rfl ⟩ := eq_diff x
+    simp [of_Nat_eq]
+    have : (1:ℤ) ≠ 0 := by omega
+    simp [mul_eq _ _ this hb]
+  }
+  mul_one := by {
+    intro x
+    obtain ⟨ a, b, hb, rfl ⟩ := eq_diff x
+    simp [of_Nat_eq]
+    have : (1:ℤ) ≠ 0 := by omega
+    simp [mul_eq _ _ hb this]
+  }
 
 /-- Proposition 4.2.4 (laws of algebra) / Exercise 4.2.3 -/
 instance Rat.instCommRing : CommRing Rat where
-  left_distrib := by sorry
-  right_distrib := by sorry
-  zero_mul := by sorry
-  mul_zero := by sorry
-  mul_assoc := by sorry
+  left_distrib := by {
+    intro x y z
+    obtain ⟨ a, b, hb, rfl ⟩ := eq_diff x
+    obtain ⟨ c, d, hd, rfl ⟩ := eq_diff y
+    obtain ⟨ e, f, hf, rfl ⟩ := eq_diff z
+    rw [add_eq _ _ hd hf, mul_eq _ _ hb hd, mul_eq _ _ hb hf]
+    have hdf : d * f ≠ 0
+    . contrapose! hf
+      simp at hf
+      tauto
+    have hbd : b * d ≠ 0
+    . contrapose! hd
+      simp at hd
+      tauto
+    have hbf : b * f ≠ 0
+    . contrapose! hb
+      simp at hb
+      tauto
+    rw [mul_eq _ _ hb hdf, add_eq _ _ hbd hbf]
+    have hbdf : (b * (d * f)) ≠ 0
+    . contrapose! hb
+      simp at hb
+      tauto
+    have hbdbf : (b * d * (b * f)) ≠ 0
+    . contrapose! hb
+      simp at hb
+      tauto
+    rw [eq _ _ hbdf hbdbf]
+    ring
+  }
+  right_distrib := by {
+    intro x y z
+    obtain ⟨ a, b, hb, rfl ⟩ := eq_diff x
+    obtain ⟨ c, d, hd, rfl ⟩ := eq_diff y
+    obtain ⟨ e, f, hf, rfl ⟩ := eq_diff z
+    rw [add_eq _ _ hb hd, mul_eq _ _ hb hf, mul_eq _ _ hd hf]
+    have hbd : b * d ≠ 0
+    . contrapose! hd
+      simp at hd
+      tauto
+    have hbf : b * f ≠ 0
+    . contrapose! hb
+      simp at hb
+      tauto
+    have hdf : d * f ≠ 0
+    . contrapose! hb
+      simp at hb
+      tauto
+    rw [mul_eq _ _ hbd hf, add_eq _ _ hbf hdf]
+    have hbdf : (b * d * f) ≠ 0
+    . contrapose! hb
+      simp at hb
+      tauto
+    have h : (b * f * (d * f)) ≠ 0
+    . contrapose! hb
+      simp at hb
+      tauto
+    rw [eq _ _ hbdf h]
+    ring
+  }
+  zero_mul := by {
+    intro x
+    obtain ⟨ a, b, hb, rfl ⟩ := eq_diff x
+    simp [of_Nat_eq]
+    have : (1:ℤ) ≠ 0 := by omega
+    rw [mul_eq _ _ this hb]
+    have h : 1 * b ≠ 0
+    . contrapose! hb
+      simp at hb
+      tauto
+    rw [eq _ _ h this]
+    ring
+  }
+  mul_zero := by {
+    intro x
+    obtain ⟨ a, b, hb, rfl ⟩ := eq_diff x
+    simp [of_Nat_eq]
+    have : (1:ℤ) ≠ 0 := by omega
+    rw [mul_eq _ _ hb this]
+    have h : b * 1 ≠ 0
+    . contrapose! hb
+      simp at hb
+      tauto
+    rw [eq _ _ h this]
+    ring
+  }
+  mul_assoc := by {
+    intro x y z
+    obtain ⟨ a, b, hb, rfl ⟩ := eq_diff x
+    obtain ⟨ c, d, hd, rfl ⟩ := eq_diff y
+    obtain ⟨ e, f, hf, rfl ⟩ := eq_diff z
+    rw [mul_eq _ _ hb hd, mul_eq _ _ hd hf]
+    have hbd : b * d ≠ 0
+    . contrapose! hd
+      simp at hd
+      tauto
+    have hdf : d * f ≠ 0
+    . contrapose! hd
+      simp at hd
+      tauto
+    rw [mul_eq _ _ hbd hf, mul_eq _ _ hb hdf]
+    have h1 : (b * d * f) ≠ 0
+    . contrapose! hd
+      simp at hd
+      tauto
+    have h2 : (b * (d * f)) ≠ 0
+    . contrapose! hd
+      simp at hd
+      tauto
+    rw [eq _ _ h1 h2]
+    ring
+  }
   -- Usually CommRing will generate a natCast instance and a proof for this.
   -- However, we are using a custom natCast for which `natCast_succ` cannot
   -- be proven automatically by `rfl`. Luckily we have proven it already.
@@ -272,7 +460,14 @@ instance Rat.instCommRing : CommRing Rat where
 instance Rat.instRatCast : RatCast Rat where
   ratCast q := q.num // q.den
 
-theorem Rat.ratCast_inj : Function.Injective (fun n:ℚ ↦ (n:Rat)) := by sorry
+theorem Rat.ratCast_inj : Function.Injective (fun n:ℚ ↦ (n:Rat)) := by
+  intro ⟨ a, b, hb, h1 ⟩ ⟨ c, d, hd, h2 ⟩ h
+  simp at h
+  change a // b = c // d at h
+  have hb2 : (b:ℤ) ≠ 0 := by omega
+  have hd2 : (d:ℤ) ≠ 0 := by omega
+  rw [eq _ _ hb2 hd2] at h
+  simp [Rat.eq_iff_mul_eq_mul, h]
 
 theorem Rat.coe_Rat_eq (a:ℤ) {b:ℤ} (hb: b ≠ 0) : (a/b:ℚ) = a // b := by
   set q := (a/b:ℚ)
@@ -292,8 +487,29 @@ theorem Rat.div_eq (q r:Rat) : q/r = q * r⁻¹ := by rfl
 
 /-- Proposition 4.2.4 (laws of algebra) / Exercise 4.2.3 -/
 instance Rat.instField : Field Rat where
-  exists_pair_ne := by sorry
-  mul_inv_cancel := by sorry
+  exists_pair_ne := by {
+    use 1 // 1, 0 // 1
+    intro contra
+    have h : (1:ℤ) ≠ 0 := by omega
+    rw [eq _ _ h h] at contra
+    simp at contra
+  }
+  mul_inv_cancel := by {
+    intro a h
+    obtain ⟨ a, b, hb, rfl ⟩ := eq_diff a
+    simp [of_Nat_eq]
+    rw [of_Nat_eq] at h
+    have h1 : (1:ℤ) ≠ 0 := by omega
+    change ¬ a // b = ↑0 // 1 at h
+    simp [eq _ _ hb h1] at h
+    rw [inv_eq _ hb, mul_eq _ _ hb h]
+    have hba : (b *a) ≠ 0
+    . contrapose! h
+      simp at h
+      tauto
+    rw [eq _ _ hba h1]
+    ring
+  }
   inv_zero := rfl
   ratCast_def := by
     intro q
@@ -306,7 +522,17 @@ instance Rat.instField : Field Rat where
   qsmul := _
   nnqsmul := _
 
-example : (3//4) / (5//6) = 9 // 10 := by sorry
+example : (3//4) / (5//6) = 9 // 10 := by
+  rw [Rat.div_eq]
+  have h6 : (6:ℤ) ≠ 0 := by omega
+  rw [Rat.inv_eq _ h6]
+  have h4 : (4:ℤ) ≠ 0 := by omega
+  have h5 : (5:ℤ) ≠ 0 := by omega
+  rw [Rat.mul_eq _ _ h4 h5]
+  have h45 : (4 * 5:ℤ) ≠ 0 := by omega
+  have h10 : (10:ℤ) ≠ 0 := by omega
+  rw [Rat.eq _ _ h45 h10]
+  ring
 
 /-- Definition of subtraction -/
 theorem Rat.sub_eq (a b:Rat) : a - b = a + (-b) := by rfl
@@ -315,8 +541,14 @@ def Rat.coe_int_hom : ℤ →+* Rat where
   toFun n := (n:Rat)
   map_zero' := rfl
   map_one' := rfl
-  map_add' := by sorry
-  map_mul' := by sorry
+  map_add' := by {
+    intro x y
+    simp
+  }
+  map_mul' := by {
+    intro x y
+    simp
+  }
 
 /-- Definition 4.2.6 (positivity) -/
 def Rat.isPos (q:Rat) : Prop := ∃ a b:ℤ, a > 0 ∧ b > 0 ∧ q = a/b
@@ -325,16 +557,85 @@ def Rat.isPos (q:Rat) : Prop := ∃ a b:ℤ, a > 0 ∧ b > 0 ∧ q = a/b
 def Rat.isNeg (q:Rat) : Prop := ∃ r:Rat, r.isPos ∧ q = -r
 
 /-- Lemma 4.2.7 (trichotomy of rationals) / Exercise 4.2.4 -/
-theorem Rat.trichotomous (x:Rat) : x = 0 ∨ x.isPos ∨ x.isNeg := by sorry
+theorem Rat.trichotomous (x:Rat) : x = 0 ∨ x.isPos ∨ x.isNeg := by
+  obtain ⟨ a, b, hb, rfl ⟩ := eq_diff x
+  have h1 : (1:ℤ) ≠ 0 := by omega
+  have ha := Int.lt_trichotomy a 0
+  by_cases ha2 : a = 0
+  . left
+    simp only [ha2, of_Nat_eq]
+    simp [eq _ _ hb h1]
+  replace ha : a < 0 ∨ 0 < a := by tauto
+  clear ha2
+  have hb2 := Int.lt_trichotomy b 0
+  replace hb2 : b < 0 ∨ 0 < b := by tauto
+  obtain ha | ha := ha <;> obtain hb2 | hb2 := hb2
+  . right; left
+    use -a, -b
+    use (by omega), (by omega)
+    simp
+    rw [div_eq, coe_Int_eq, coe_Int_eq, inv_eq _ h1, mul_eq _ _ h1 hb, eq _ _ hb (by omega)]
+    ring
+  . right; right
+    use -a//b
+    constructor
+    . use -a, b
+      use (by omega), (by omega)
+      rw [div_eq, coe_Int_eq, coe_Int_eq, inv_eq _ h1, mul_eq _ _ h1 hb, neg_eq _ hb, eq _ _ hb (by omega)]
+      ring
+    . simp
+  . right; right
+    use -a//b
+    constructor
+    . use a, -b
+      use (by omega), (by omega)
+      rw [div_eq, neg_eq _ hb, coe_Int_eq, coe_Int_eq, inv_eq _ h1, mul_eq _ _ h1 (by omega), eq _ _ hb (by omega)]
+      ring
+    . simp
+  . right; left
+    use a, b
+    use (by omega), (by omega)
+    rw [div_eq, coe_Int_eq, coe_Int_eq, inv_eq _ h1, mul_eq _ _ h1 hb, eq _ _ hb (by omega)]
+    ring
 
 /-- Lemma 4.2.7 (trichotomy of rationals) / Exercise 4.2.4 -/
-theorem Rat.not_zero_and_pos (x:Rat) : ¬(x = 0 ∧ x.isPos) := by sorry
+theorem Rat.not_zero_and_pos (x:Rat) : ¬(x = 0 ∧ x.isPos) := by
+  intro ⟨ h1, h2 ⟩
+  obtain ⟨ a, b, hb, rfl ⟩ := eq_diff x
+  obtain ⟨ x, y, hx, hy, h3 ⟩ := h2
+  rw [of_Nat_eq, eq _ _ (by omega) (by omega)] at h1
+  simp at h1
+  rw [h1, div_eq, coe_Int_eq, coe_Int_eq, inv_eq _ (by omega), mul_eq _ _ (by omega) (by omega), eq _ _ hb (by omega)] at h3
+  simp at h3
+  omega
 
 /-- Lemma 4.2.7 (trichotomy of rationals) / Exercise 4.2.4 -/
-theorem Rat.not_zero_and_neg (x:Rat) : ¬(x = 0 ∧ x.isNeg) := by sorry
+theorem Rat.not_zero_and_neg (x:Rat) : ¬(x = 0 ∧ x.isNeg) := by
+  intro ⟨ h1, h2 ⟩
+  obtain ⟨ a, b, hb, rfl ⟩ := eq_diff x
+  rw [of_Nat_eq, eq _ _ (by omega) (by omega)] at h1
+  simp at h1
+  obtain ⟨ c, h3, h4 ⟩ := h2
+  obtain ⟨ x, y, hx, hy, h3 ⟩ := h3
+  rw [h1, h3, div_eq, coe_Int_eq, coe_Int_eq, inv_eq _ (by omega), mul_eq _ _ (by omega) (by omega), neg_eq _ (by omega), eq _ _ (by omega) (by omega)] at h4
+  simp at h4
+  omega
 
 /-- Lemma 4.2.7 (trichotomy of rationals) / Exercise 4.2.4 -/
-theorem Rat.not_pos_and_neg (x:Rat) : ¬(x.isPos ∧ x.isNeg) := by sorry
+theorem Rat.not_pos_and_neg (x:Rat) : ¬(x.isPos ∧ x.isNeg) := by
+  intro ⟨ h1, h2 ⟩
+  obtain ⟨ a, b, hb, rfl ⟩ := eq_diff x
+  obtain ⟨ x, h2, h3 ⟩ := h2
+  obtain ⟨ c, d, hd, rfl ⟩ := eq_diff x
+  obtain ⟨ x1, y1, hx1, hy1, h4 ⟩ := h1
+  obtain ⟨ x2, y2, hx2, hy2, h5 ⟩ := h2
+  rw [h4, h5, div_eq, div_eq] at h3
+  simp only [coe_Int_eq] at h3
+  rw [inv_eq _ (by omega), inv_eq _ (by omega), mul_eq _ _ (by omega) (by omega), mul_eq _ _ (by omega) (by omega), neg_eq _ (by omega), eq _ _ (by omega) (by omega)] at h3
+  simp at h3
+  have : x1 * y2 > 0 := by exact Int.mul_pos hx1 hy2
+  have : x2 * y1 > 0 := by exact Int.mul_pos hx2 hy1
+  omega
 
 /-- Definition 4.2.8 (Ordering of the rationals) -/
 instance Rat.instLT : LT Rat where
@@ -347,32 +648,122 @@ instance Rat.instLE : LE Rat where
 theorem Rat.lt_iff (x y:Rat) : x < y ↔ (x-y).isNeg := by rfl
 theorem Rat.le_iff (x y:Rat) : x ≤ y ↔ (x < y) ∨ (x = y) := by rfl
 
-theorem Rat.gt_iff (x y:Rat) : x > y ↔ (x-y).isPos := by sorry
-theorem Rat.ge_iff (x y:Rat) : x ≥ y ↔ (x > y) ∨ (x = y) := by sorry
+theorem Rat.gt_iff (x y:Rat) : x > y ↔ (x-y).isPos := by
+  rw [gt_iff_lt, lt_iff, isNeg]
+  constructor <;> intro h
+  . obtain ⟨ r, hr, hr2 ⟩ := h
+    obtain ⟨ a, b, ha, hb, hr3 ⟩ := hr
+    use a, b, ha, hb
+    have : x - y = r
+    . calc
+        x - y = -(y - x) := by ring
+        _ = -(-r) := by rw [hr2]
+        _ = _ := by ring
+    rw [this, hr3]
+  . use (x-y), h
+    ring
+theorem Rat.ge_iff (x y:Rat) : x ≥ y ↔ (x > y) ∨ (x = y) := by
+  rw [gt_iff_lt, ge_iff_le, le_iff]
+  tauto
 
 /-- Proposition 4.2.9(a) (order trichotomy) / Exercise 4.2.5 -/
-theorem Rat.trichotomous' (x y:Rat) : x > y ∨ x < y ∨ x = y := by sorry
+theorem Rat.trichotomous' (x y:Rat) : x > y ∨ x < y ∨ x = y := by
+  obtain h | h | h := trichotomous (x-y)
+  . right; right
+    calc
+      x = x - y + y := by ring
+      _ = 0 + y := by rw [h]
+      _ = _ := by ring
+  . left
+    simp [gt_iff, h]
+  . right; left
+    simp [lt_iff, h]
 
 /-- Proposition 4.2.9(a) (order trichotomy) / Exercise 4.2.5 -/
-theorem Rat.not_gt_and_lt (x y:Rat) : ¬ (x > y ∧ x < y):= by sorry
+theorem Rat.not_gt_and_lt (x y:Rat) : ¬ (x > y ∧ x < y):= by
+  intro h
+  rw [gt_iff, lt_iff] at h
+  simp [not_pos_and_neg] at h
 
 /-- Proposition 4.2.9(a) (order trichotomy) / Exercise 4.2.5 -/
-theorem Rat.not_gt_and_eq (x y:Rat) : ¬ (x > y ∧ x = y):= by sorry
+theorem Rat.not_gt_and_eq (x y:Rat) : ¬ (x > y ∧ x = y):= by
+  intro h
+  rw [gt_iff] at h
+  have := not_zero_and_pos (x-y)
+  have : x - y = 0
+  . calc
+      x - y = y - y := by rw [h.2]
+      _ = 0 := by ring
+  tauto
 
 /-- Proposition 4.2.9(a) (order trichotomy) / Exercise 4.2.5 -/
-theorem Rat.not_lt_and_eq (x y:Rat) : ¬ (x < y ∧ x = y):= by sorry
+theorem Rat.not_lt_and_eq (x y:Rat) : ¬ (x < y ∧ x = y):= by
+  intro h
+  rw [lt_iff] at h
+  have := not_zero_and_neg (x-y)
+  have : x - y = 0
+  . calc
+      x - y = y - y := by rw [h.2]
+      _ = 0 := by ring
+  tauto
 
 /-- Proposition 4.2.9(b) (order is anti-symmetric) / Exercise 4.2.5 -/
-theorem Rat.antisymm (x y:Rat) : x < y ↔ y > x := by sorry
+theorem Rat.antisymm (x y:Rat) : x < y ↔ y > x := by
+  rw [gt_iff_lt]
 
 /-- Proposition 4.2.9(c) (order is transitive) / Exercise 4.2.5 -/
-theorem Rat.lt_trans {x y z:Rat} (hxy: x < y) (hyz: y < z) : x < z := by sorry
+theorem Rat.lt_trans {x y z:Rat} (hxy: x < y) (hyz: y < z) : x < z := by
+  obtain ⟨ a, ha1, ha2 ⟩ := hxy
+  obtain ⟨ b, hb1, hb2 ⟩ := hyz
+  use (a+b)
+  constructor
+  . obtain ⟨ x1, y1, hx1, hy1, rfl ⟩ := ha1
+    obtain ⟨ x2, y2, hx2, hy2, rfl ⟩ := hb1
+    have hy1y2 : y1 * y2 > 0 := by exact Int.mul_pos hy1 hy2
+    have hx1y2 : x1 * y2 > 0 := by exact Int.mul_pos hx1 hy2
+    have hy1x2 : y1 * x2 > 0 := by exact Int.mul_pos hy1 hx2
+    have h2 : 1 * y1 * (1 * y2) = y1 * y2 := by ring
+    use x1*y2 + y1*x2, y1*y2, (by omega), hy1y2
+    have h1 : (1:ℤ) ≠ 0 := by omega
+    simp only [div_eq, coe_Int_eq]
+    simp only [inv_eq _ h1]
+    rw [mul_eq _ _ h1 (by omega), mul_eq _ _ h1 (by omega), mul_eq _ _ h1 (by omega), add_eq _ _ (by omega) (by omega)]
+    rw [eq _ _ (by omega) (by omega)]
+    ring
+  . calc
+      x - z = x - y + (y - z) := by ring
+      _ = -a + (y - z) := by rw [ha2]
+      _ = -a + -b := by rw [hb2]
+      _ = _  := by ring
 
 /-- Proposition 4.2.9(d) (addition preserves order) / Exercise 4.2.5 -/
-theorem Rat.add_lt_add_right {x y:Rat} (z:Rat) (hxy: x < y) : x + z < y + z := by sorry
+theorem Rat.add_lt_add_right {x y:Rat} (z:Rat) (hxy: x < y) : x + z < y + z := by
+  obtain ⟨ r, hr, hr2 ⟩ := hxy
+  use r, hr
+  have : x + z - (y + z) = x - y := by ring
+  simp [this, hr2]
 
 /-- Proposition 4.2.9(e) (positive multiplication preserves order) / Exercise 4.2.5 -/
-theorem Rat.mul_lt_mul_right {x y z:Rat} (hxy: x < y) (hz: z.isPos) : x * z < y * z := by sorry
+theorem Rat.mul_lt_mul_right {x y z:Rat} (hxy: x < y) (hz: z.isPos) : x * z < y * z := by
+  obtain ⟨ r, hr, hr2 ⟩ := hxy
+  use r*z
+  constructor
+  . obtain ⟨ x1, y1, hx1, hy1, rfl ⟩ := hz
+    obtain ⟨ x2, y2, hx2, hy2, rfl ⟩ := hr
+    have h1 : (1:ℤ) ≠ 0 := by omega
+    simp only [div_eq, coe_Int_eq, inv_eq _ h1]
+    rw [mul_eq _ _ h1 (by omega), mul_eq _ _ h1 (by omega), mul_eq _ _ (by omega) (by omega)]
+    have hx2x1 : x2 * x1 > 0 := by exact Int.mul_pos hx2 hx1
+    have hy2y1 : y2 * y1 > 0 := by exact Int.mul_pos hy2 hy1
+    have he : 1 * y2 * (1 * y1) = y2 * y1 := by ring
+    use x2*x1, y2*y1, hx2x1, hy2y1
+    simp only [div_eq, coe_Int_eq]
+    rw [inv_eq _ h1, mul_eq _ _ h1 (by omega), eq _ _ (by omega) (by omega)]
+    ring
+  . calc
+      x * z - y * z = (x - y) * z := by ring
+      _ = -r * z := by rw [hr2]
+      _ = _ := by ring
 
 /-- (Not from textbook) Establish the decidability of this order. -/
 instance Rat.decidableRel : DecidableRel (· ≤ · : Rat → Rat → Prop) := by
