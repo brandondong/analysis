@@ -1066,7 +1066,112 @@ theorem SetTheory.Set.card_image_inj {X Y:Set} (hX: X.finite) {f: X → Y}
 
 /-- Proposition 3.6.14 (e) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_prod {X Y:Set} (hX: X.finite) (hY: Y.finite) :
-    (X ×ˢ Y).finite ∧ (X ×ˢ Y).card = X.card * Y.card := by sorry
+    (X ×ˢ Y).finite ∧ (X ×ˢ Y).card = X.card * Y.card := by
+  obtain ⟨ n, hx ⟩ := hX
+  -- Induct on the cardinality of X, generalizing X.
+  revert X
+  induction' n with i IH
+  . intro X hX
+    have he : X = ∅ := by exact has_card_zero.mp hX
+    simp [he]
+    have he2 : (((∅:Set) ×ˢ Y):Set) = (∅:Set)
+    . ext x
+      simp
+    simp [he2]
+  -- IH: Assume holds for X' of size n, prove for X of size n+1.
+  intro X hX
+  have hXc : X.card = i + 1 := by exact has_card_to_card hX
+  have hXe : X ≠ ∅
+  . intro contra
+    have : X.card = 0 := by exact card_eq_zero_of_empty contra
+    omega
+  obtain ⟨ x, hx ⟩ := nonempty_def hXe
+  set X' := X \ {x}
+  have hX' : X'.has_card i
+  . have := card_erase (by omega) hX ⟨ x, hx ⟩
+    simp at this
+    simp [X', this]
+  have hX'c : X'.card = i := by exact has_card_to_card hX'
+  specialize IH hX'
+  obtain ⟨ j, hY ⟩ := hY
+  have hYc : Y.card = j := by exact has_card_to_card hY
+  -- We'll need to union with {x} * Y and prove its cardinality is equal to Y.
+  set xprod := ({x}:Set) ×ˢ Y
+  have hxprod : xprod.has_card j
+  . simp [xprod]
+    -- Create the bijective mapping using y's.
+    obtain ⟨ f, hf ⟩ := hY
+    -- Use the slice so we don't run into double exists choose woes...
+    have : (({x}:Set) ×ˢ Y) = SetTheory.Set.slice x Y
+    . ext p
+      simp
+    rw [this]
+    use fun p ↦ f ((mem_slice x p Y).mp p.2).choose
+    constructor
+    . intro p1 p2 h
+      simp at h
+      set c1 := (mem_slice x (↑p1) Y).mp p1.property
+      set c2 := (mem_slice x (↑p2) Y).mp p2.property
+      have hc1 := c1.choose_spec
+      have hc2 := c2.choose_spec
+      rw [← coe_inj, hc1, hc2]
+      simp
+      rw [← Fin.coe_inj] at h
+      have := hf.1 h
+      simp [this]
+    . intro n
+      have h_surj := hf.2 n
+      obtain ⟨ y, hy ⟩ := h_surj
+      set p := (⟨x, y⟩:OrderedPair)
+      have hp : OrderedPair.toObject p ∈ slice x Y
+      . rw [mem_slice]
+        use y
+      set p2 := (⟨ p, hp ⟩:(slice x Y))
+      use p2
+      simp
+      set c := (mem_slice x (↑p2) Y).mp p2.property
+      have hc := c.choose_spec
+      unfold p2 at hc
+      unfold p at hc
+      have : c.choose = y
+      . set d := c.choose -- For some reason required...
+        simp [coe_inj] at hc
+        simp [hc]
+      simp [this, hy]
+  have hxprodf : xprod.finite := by use j
+  have hxprodc : xprod.card = j := by exact has_card_to_card hxprod
+  have he : (X ×ˢ Y) = (X' ×ˢ Y) ∪ xprod
+  . simp [xprod, SetTheory.Set.ext_iff]
+    intro p
+    constructor <;> intro h
+    . obtain ⟨ x', hx', y, hy, hp ⟩ := h
+      by_cases hx'2 : x' = x
+      . right
+        use y, hy
+        simp [← hx'2, hp]
+      . left
+        simp [X']
+        use x', (by tauto), y
+    . obtain h | h := h
+      . obtain ⟨ x', hx', y, hy, hp ⟩ := h
+        simp [X'] at hx'
+        use x', (by tauto), y, hy
+      . obtain ⟨ y, hy, hp2 ⟩ := h
+        use x, hx, y
+  rw [he]
+  constructor
+  . exact (card_union IH.1 hxprodf).1
+  have h_disj : Disjoint (X' ×ˢ Y) xprod
+  . simp [disjoint_iff, SetTheory.Set.ext_iff]
+    intro p x' hx' y hy hp contra
+    simp [xprod] at contra
+    obtain ⟨ y2, hy2, hp2 ⟩ := contra
+    simp [hp2] at hp
+    simp [X'] at hx'
+    tauto
+  have := card_union_disjoint IH.1 hxprodf h_disj
+  simp [this, hxprodc, IH.2, hX'c, hYc, hXc]
+  ring
 
 abbrev f_to_power {A B : Set} : (B → A) → (A ^ B).toSubtype :=
   fun f ↦ ⟨ f, by {
