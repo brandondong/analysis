@@ -1197,7 +1197,12 @@ abbrev Rat.equivRat_order : Rat ≃o ℚ where
         use r.num // r.den
         constructor
         . rw [isPos]
-          sorry
+          rw [← Rat.num_pos] at hr
+          have := Rat.pos r
+          use r.num, r.den, (by omega), (by omega)
+          simp
+          rw [div_eq, coe_Int_eq, coe_Nat_eq, inv_eq _ (by omega), mul_eq _ _ (by omega) (by omega), eq _ _ (by omega) (by omega)]
+          ring
         . simp [Rat.intCast_div_eq_divInt] at hr2
           replace hr2 : r = Rat.divInt x2 y2 - Rat.divInt x1 y1
           . linarith
@@ -1236,7 +1241,29 @@ abbrev Rat.equivRat_order : Rat ≃o ℚ where
         rw [lt_iff_exists_pos_add]
         use x3 / y3
         constructor
-        . sorry
+        . simp [Rat.intCast_div_eq_divInt]
+          obtain ⟨ a, b, ha, hb, h ⟩ := hr
+          -- x3/y3 can be positive/negative, difficult to manipulate divInt directly...
+          rw [lt_iff_exists_pos_add]
+          use Rat.divInt a b
+          constructor
+          . simp [Rat.divInt]
+            match b with
+            | .ofNat d => {
+              simp
+              rw [gt_iff_lt] at ha
+              have : d ≠ 0
+              . have : d > 0 := by exact Int.natCast_pos.mp hb
+                omega
+              exact Rat.mkRat_pos ha this
+            }
+            | .negSucc d => {
+              simp at hb
+            }
+          . rw [div_eq, coe_Int_eq, coe_Int_eq, inv_eq _ (by omega), mul_eq _ _ (by omega) (by omega), eq _ _ hy3 (by omega)] at h
+            simp
+            rw [Rat.divInt_eq_iff (by omega) hy3]
+            linarith
         . simp [Rat.intCast_div_eq_divInt]
           have hy1y3 : y1 * y3 ≠ 0
           . contrapose! hy2
@@ -1247,8 +1274,7 @@ abbrev Rat.equivRat_order : Rat ≃o ℚ where
             simp at hy2
             tauto
           rw [Rat.divInt_add_divInt _ _ hy1 hy3, Rat.divInt_eq_iff hy1y3 hy2]
-          have : x1 // y1 - x2 // y2 = x1 // y1 + -x2 // y2 := by rfl
-          rw [this, neg_eq _ hy2, neg_eq _ hy3, add_eq _ _ hy1 hy2, eq _ _ hy1y2 hy3] at hr2
+          rw [sub_eq_add_neg, neg_eq _ hy2, neg_eq _ hy3, add_eq _ _ hy1 hy2, eq _ _ hy1y2 hy3] at hr2
           linarith
       . simp [h]
   }
@@ -1256,8 +1282,40 @@ abbrev Rat.equivRat_order : Rat ≃o ℚ where
 /-- Not in textbook: equivalence preserves ring operations -/
 abbrev Rat.equivRat_ring : Rat ≃+* ℚ where
   toEquiv := equivRat
-  map_add' := by sorry
-  map_mul' := by sorry
+  map_add' := by {
+    intro x y
+    obtain ⟨ a, b, hb, rfl ⟩ := eq_diff x
+    obtain ⟨ c, d, hd, rfl ⟩ := eq_diff y
+    simp [hb, hd, add_eq _ _ hb hd]
+    -- Convert everything to divInts?
+    have h1 : (1:ℤ) ≠ 0 := by omega
+    have hbd : b * d ≠ 0
+    . contrapose! hb
+      simp at hb
+      tauto
+    simp only [Rat.intCast_div_eq_divInt]
+    simp only [Rat.intCast_eq_divInt]
+    rw [Rat.divInt_add_divInt _ _ hb hd, Rat.divInt_mul_divInt _ _ h1 h1, Rat.divInt_mul_divInt _ _ h1 h1, Rat.divInt_mul_divInt _ _ h1 h1]
+    rw [Rat.divInt_add_divInt _ _ (by omega) (by omega), Rat.divInt_div_divInt, Rat.divInt_eq_iff (by omega) hbd]
+    ring
+  }
+  map_mul' := by {
+    intro x y
+    obtain ⟨ a, b, hb, rfl ⟩ := eq_diff x
+    obtain ⟨ c, d, hd, rfl ⟩ := eq_diff y
+    simp [hb, hd, mul_eq _ _ hb hd]
+    simp only [Rat.intCast_div_eq_divInt]
+    simp only [Rat.intCast_eq_divInt]
+    have h1 : (1:ℤ) ≠ 0 := by omega
+    simp only [Rat.divInt_mul_divInt _ _ h1 h1]
+    rw [Rat.divInt_div_divInt, Rat.divInt_mul_divInt _ _ hb hd]
+    have hbd : b * d ≠ 0
+    . contrapose! hb
+      simp at hb
+      tauto
+    rw [Rat.divInt_eq_iff (by omega) hbd]
+    ring
+  }
 
 /--
   (Not from textbook) The textbook rationals are isomorphic (as a field) to the Mathlib rationals.
