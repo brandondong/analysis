@@ -53,7 +53,18 @@ theorem abs_of_zero : abs 0 = 0 := rfl
   Henceforth we use the Mathlib absolute value.
 -/
 theorem abs_eq_abs (x: ℚ) : abs x = |x| := by
-  sorry
+  obtain h | h | h := lt_trichotomy x 0
+  . have := abs_of_neg h
+    simp [this]
+    symm
+    rw [abs_eq (by linarith)]
+    simp
+  . simp [h]
+  . have := abs_of_pos h
+    simp [this]
+    symm
+    rw [abs_eq (by linarith)]
+    simp
 
 abbrev dist (x y : ℚ) := |x - y|
 
@@ -64,13 +75,62 @@ abbrev dist (x y : ℚ) := |x - y|
 theorem dist_eq (x y: ℚ) : dist x y = |x-y| := rfl
 
 /-- Proposition 4.3.3(a) / Exercise 4.3.1 -/
-theorem abs_nonneg (x: ℚ) : |x| ≥ 0 := by sorry
+theorem abs_nonneg (x: ℚ) : |x| ≥ 0 := by
+  rw [← abs_eq_abs] -- Respect the spirit of the exercise by using the book definition?
+  obtain h | h | h := lt_trichotomy x 0
+  . have := abs_of_neg h
+    simp [this]
+    linarith
+  . simp [h, abs]
+  . have := abs_of_pos h
+    simp [this]
+    linarith
 
 /-- Proposition 4.3.3(a) / Exercise 4.3.1 -/
-theorem abs_eq_zero_iff (x: ℚ) : |x| = 0 ↔ x = 0 := by sorry
+theorem abs_eq_zero_iff (x: ℚ) : |x| = 0 ↔ x = 0 := by
+  rw [← abs_eq_abs]
+  constructor <;> intro hx
+  . obtain h | h | h := lt_trichotomy x 0
+    . have := abs_of_neg h
+      simp [this] at hx
+      linarith
+    . exact h
+    . have := abs_of_pos h
+      simp [this] at hx
+      linarith
+  . simp [hx]
 
 /-- Proposition 4.3.3(b) / Exercise 4.3.1 -/
-theorem abs_add (x y:ℚ) : |x + y| ≤ |x| + |y| := by sorry
+theorem abs_add (x y:ℚ) : |x + y| ≤ |x| + |y| := by
+  simp only [← abs_eq_abs]
+  -- Cases everywhere :(
+  have hy := lt_trichotomy y 0
+  by_cases hy2 : y = 0
+  . simp [hy2, abs]
+  replace hy : y < 0 ∨ 0 < y := by tauto
+  obtain hx | hx | hx := lt_trichotomy x 0
+  . have hxa := abs_of_neg hx
+    simp only [hxa]
+    obtain hy | hy := hy
+    . have hya := abs_of_neg hy
+      simp only [hya]
+      have : x + y < 0 := by linarith
+      have h := abs_of_neg this
+      simp [h]
+    . have hya := abs_of_pos hy
+      simp only [hya]
+      sorry
+  . simp [hx, abs]
+  . have hxa := abs_of_pos hx
+    simp only [hxa]
+    obtain hy | hy := hy
+    . have hya := abs_of_neg hy
+      simp only [hya]
+      sorry
+    . have hya := abs_of_pos hy
+      simp only [hya]
+      have : 0 < x + y := by linarith
+      simp [abs, this]
 
 /-- Proposition 4.3.3(c) / Exercise 4.3.1 -/
 theorem abs_le_iff (x y:ℚ) : -y ≤ x ∧ x ≤ y ↔ |x| ≤ y := by sorry

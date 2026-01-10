@@ -1212,7 +1212,32 @@ lemma SetTheory.Set.pow_fun_eq_iff {A B : Set} (x y : ↑(A ^ B)) : x = y ↔ po
 
 /-- Proposition 3.6.14 (f) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_pow {X Y:Set} (hY: Y.finite) (hX: X.finite) :
-    (Y ^ X).finite ∧ (Y ^ X).card = Y.card ^ X.card := by sorry
+    (Y ^ X).finite ∧ (Y ^ X).card = Y.card ^ X.card := by
+  -- Induct on cardinality of X.
+  obtain ⟨ i, hX ⟩ := hX
+  obtain ⟨ j, hY ⟩ := hY
+  have hYf : Y.finite := by use j
+  revert X
+  induction' i with i IH
+  . sorry
+  -- Then IH holds for X \ {x} -> Y. Need to prove for X -> Y.
+  intro X hX
+  have hXc : X.card = i + 1 := by exact has_card_to_card hX
+  have hXe : X ≠ ∅
+  . intro contra
+    have : X.card = 0 := by exact card_eq_zero_of_empty contra
+    omega
+  obtain ⟨ x, hx ⟩ := nonempty_def hXe
+  set X' := X \ {x}
+  have hX' : X'.has_card i
+  . have := card_erase (by omega) hX ⟨ x, hx ⟩
+    simp at this
+    simp [X', this]
+  have hX'c : X'.card = i := by exact has_card_to_card hX'
+  specialize IH hX'
+  -- We can do a product with Y and assert this cardinality is the desired result.
+  -- Then assert equality of cardinality with (Y ^ X) by making a bijective function.
+  sorry
 
 #check SetTheory.Set.prod_commutator
 
@@ -1228,6 +1253,8 @@ theorem SetTheory.Set.prod_EqualCard_prod (A B:Set) :
 
 noncomputable abbrev SetTheory.Set.pow_fun_equiv' (A B : Set) : ↑(A ^ B) ≃ (B → A) :=
   pow_fun_equiv (A:=A) (B:=B)
+
+#check SetTheory.Set.curry_equiv
 
 /-- Exercise 3.6.6. You may find `SetTheory.Set.curry_equiv` useful. -/
 theorem SetTheory.Set.pow_pow_EqualCard_pow_prod (A B C:Set) :
@@ -1568,9 +1595,61 @@ theorem SetTheory.Set.pigeonhole_principle {n:ℕ} {A: Fin n → Set}
   specialize h (Fin_mk (i + 1) i (by norm_num))
   linarith
 
+open Classical in
 /-- Exercise 3.6.11 -/
 theorem SetTheory.Set.two_to_two_iff {X Y:Set} (f: X → Y): Function.Injective f ↔
-    ∀ S ⊆ X, S.card = 2 → (image f S).card = 2 := by sorry
+    ∀ S ⊆ X, S.card = 2 → (image f S).card = 2 := by
+  constructor <;> intro h
+  . intro S hSX hSc
+    have hS : S.has_card 2 := card_to_has_card (by omega) hSc
+    -- Grab the two elements and then manually form the image bijection.
+    obtain ⟨ f', ⟨ hfi, hfs ⟩ ⟩ := hS
+    obtain ⟨ s1, hs1 ⟩ := hfs (Fin_mk 2 0 (by omega))
+    obtain ⟨ s2, hs2 ⟩ := hfs (Fin_mk 2 1 (by omega))
+    -- To do this, need to prove image/S/Fin pair set equalities.
+    have goal : (image f S).has_card 2
+    . have hs1X : s1.val ∈ X := by sorry
+      have hs2X : s2.val ∈ X := by sorry
+      have hs1I : (f ⟨s1, hs1X⟩).val ∈ image f S := by sorry
+      have hs2I : (f ⟨s2, hs2X⟩).val ∈ image f S := by sorry
+      use fun y ↦ if y = ⟨ (f ⟨ s1, hs1X ⟩), hs1I ⟩ then (Fin_mk 2 0 (by omega)) else (Fin_mk 2 1 (by omega))
+      constructor
+      . intro y1 y2 h
+        simp at h
+        by_cases hy1 : y1 = ⟨ (f ⟨ s1, hs1X ⟩), hs1I ⟩ <;> simp [hy1] at h <;>
+          by_cases hy2 : y2 = ⟨ (f ⟨ s1, hs1X ⟩), hs1I ⟩ <;> simp [hy2] at h
+        . simp [hy1, hy2]
+        . replace hy1 : y1 = ⟨ (f ⟨ s2, hs2X ⟩), hs2I ⟩ := by sorry
+          replace hy2 : y2 = ⟨ (f ⟨ s2, hs2X ⟩), hs2I ⟩ := by sorry
+          simp [hy1, hy2]
+      . intro n
+        by_cases hn : n = (Fin_mk 2 0 (by omega))
+        . use ⟨ (f ⟨ s1, hs1X ⟩), hs1I ⟩
+          simp [hn]
+        . replace hn : n = (Fin_mk 2 1 (by omega)) := by sorry
+          use ⟨ (f ⟨ s2, hs2X ⟩), hs2I ⟩
+          have hne : ¬ (f ⟨ s2, hs2X ⟩) = (f ⟨ s1, hs1X ⟩) := by sorry
+          simp [coe_inj, hne, hn]
+    exact has_card_to_card goal
+  . by_contra hf
+    unfold Function.Injective at hf
+    push_neg at hf
+    obtain ⟨ x1, x2, hxf, hx ⟩ := hf
+    -- Consider {x1, x2}.
+    have hS : ({x1.val, x2.val}:Set) ⊆ X := by sorry
+    have hSc : ({x1.val, x2.val}:Set).card = 2 := by sorry
+    specialize h ({x1.val, x2.val}:Set) hS hSc
+    have contra : (image f {↑x1, ↑x2}).card = 1
+    . have goal : (image f {↑x1, ↑x2}).has_card 1
+      -- The image set is only made up of { f x1 }.
+      . use fun x ↦ (Fin_mk 1 0 (by omega))
+        constructor
+        . intro y1 y2 _
+          sorry
+        . intro n
+          sorry
+      exact has_card_to_card goal
+    omega
 
 /-- Exercise 3.6.12 -/
 def SetTheory.Set.Permutations (n: ℕ): Set := (Fin n ^ Fin n).specify (fun F ↦
