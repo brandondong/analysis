@@ -1211,6 +1211,7 @@ noncomputable def SetTheory.Set.pow_fun_equiv {A B : Set} : ↑(A ^ B) ≃ (B �
 lemma SetTheory.Set.pow_fun_eq_iff {A B : Set} (x y : ↑(A ^ B)) : x = y ↔ pow_fun_equiv x = pow_fun_equiv y := by
   rw [←pow_fun_equiv.apply_eq_iff_eq]
 
+open Classical in
 /-- Proposition 3.6.14 (f) / Exercise 3.6.4 -/
 theorem SetTheory.Set.card_pow {X Y:Set} (hY: Y.finite) (hX: X.finite) :
     (Y ^ X).finite ∧ (Y ^ X).card = Y.card ^ X.card := by
@@ -1220,7 +1221,39 @@ theorem SetTheory.Set.card_pow {X Y:Set} (hY: Y.finite) (hX: X.finite) :
   have hYf : Y.finite := by use j
   revert X
   induction' i with i IH
-  . sorry
+  . intro X hX
+    have he : X = ∅ := by exact has_card_zero.mp hX
+    have hXc : X.card = 0 := by exact card_eq_zero_of_empty he
+    simp [he]
+    have goal : (((Y:Set) ^ (∅:Set)):Set).has_card 1
+    . use fun _ ↦ Fin_mk 1 0 (by omega)
+      constructor
+      . intro f1 f2 _
+        have hf1 := f1.2
+        have hf2 := f2.2
+        rw [powerset_axiom] at hf1 hf2
+        obtain ⟨ f1', hf1' ⟩ := hf1
+        obtain ⟨ f2', hf2' ⟩ := hf2
+        simp [← coe_inj, ← hf1', ← hf2']
+        ext x
+        have hx := x.2
+        simp at hx
+      . intro n
+        set f: (∅:Set) → Y := fun x ↦ ⟨ 1, by {
+          have := x.2
+          simp at this
+        } ⟩
+        use ⟨ f, by {
+          rw [powerset_axiom]
+          use f
+        } ⟩
+        have := mem_Fin' n
+        obtain ⟨ x, hx, rfl ⟩ := this
+        simp
+        omega
+    constructor
+    . use 1
+    . exact has_card_to_card goal
   -- Then IH holds for X \ {x} -> Y. Need to prove for X -> Y.
   intro X hX
   have hXc : X.card = i + 1 := by exact has_card_to_card hX
@@ -1235,10 +1268,106 @@ theorem SetTheory.Set.card_pow {X Y:Set} (hY: Y.finite) (hX: X.finite) :
     simp at this
     simp [X', this]
   have hX'c : X'.card = i := by exact has_card_to_card hX'
+  have hYc : Y.card = j := by exact has_card_to_card hY
   specialize IH hX'
   -- We can do a product with Y and assert this cardinality is the desired result.
+  have h_prod := card_prod IH.1 hYf
   -- Then assert equality of cardinality with (Y ^ X) by making a bijective function.
-  sorry
+  have goal : (Y ^ X).has_card (Y.card ^ X.card)
+  . have hProd : ((Y ^ X') ×ˢ Y).has_card (Y.card ^ X.card)
+    . have := has_card_card h_prod.1
+      rw [h_prod.2, IH.2, hX'c] at this
+      rw [hXc]
+      have : Y.card ^ i * Y.card = Y.card ^ (i + 1) := by ring
+      rwa [← this]
+    -- Easiest would be to create a bijective function from ((Y ^ X') ×ˢ Y) -> (Y ^ X).
+    set g: ((Y ^ X') ×ˢ Y) → ((Y ^ X):Set) :=
+      fun p ↦ ⟨ ((fun x ↦ if hx:(x.val ∈ X') then (((powerset_axiom (SetTheory.Set.fst p)).mp (by exact Subtype.property _)).choose ⟨ x, hx ⟩)
+        else (SetTheory.Set.snd p)):X → Y),
+      by {
+        rw [powerset_axiom]
+        use ((fun x ↦ if hx:(x.val ∈ X') then (((powerset_axiom (SetTheory.Set.fst p)).mp (by exact Subtype.property _)).choose ⟨ x, hx ⟩)
+        else (SetTheory.Set.snd p)):X → Y)
+      } ⟩
+    have hg : Function.Bijective g
+    . have x'_helper (x' : X') : x'.val ∈ X
+      . have := x'.2
+        simp [X'] at this
+        tauto
+      have x'_helper2 (x' : X) (hx' : x'.val ∉ X') : x' = ⟨ x, hx ⟩
+      . simp [X', x'.2] at hx'
+        simp [← hx']
+      have hxX' : x ∉ X' := by simp [X']
+      constructor
+      . intro f1 f2 h
+        simp [g, funext_iff] at h
+        have hf1 := f1.2
+        have hf2 := f2.2
+        rw [mem_cartesian] at hf1 hf2
+        obtain ⟨ hf1', y1, hf1 ⟩ := hf1
+        obtain ⟨ hf2', y2, hf2 ⟩ := hf2
+        rw [← coe_inj, hf1, hf2]
+        simp [coe_inj]
+        constructor
+        . have h1 := hf1'.2
+          have h2 := hf2'.2
+          rw [powerset_axiom] at h1 h2
+          obtain ⟨ f1', h1 ⟩ := h1
+          obtain ⟨ f2', h2 ⟩ := h2
+          simp [← coe_inj, ← h1, ← h2]
+          ext x'
+          specialize h x' (x'_helper x')
+          have hx' := x'.2
+          simp [hx'] at h
+          set c1 := (powerset_axiom ↑(fst f1)).mp (fst f1).property
+          set c2 := (powerset_axiom ↑(fst f2)).mp (fst f2).property
+          have hc1 := c1.choose_spec
+          have hc2 := c2.choose_spec
+          set d1 := c1.choose
+          set d2 := c2.choose
+          have h1' := Set.pair_eq_fst_snd f1
+          have h2' := Set.pair_eq_fst_snd f2
+          simp [h1'] at hf1
+          simp [h2'] at hf2
+          simp [hf1.1, ← h1] at hc1
+          simp [hf2.1, ← h2] at hc2
+          rw [coe_inj]
+          rwa [hc1, hc2] at h
+        . specialize h x hx
+          simp [hxX'] at h
+          have h1 := Set.pair_eq_fst_snd f1
+          have h2 := Set.pair_eq_fst_snd f2
+          simp [h1, coe_inj] at hf1
+          simp [h2, coe_inj] at hf2
+          rwa [hf1.2, hf2.2] at h
+      . intro fXY
+        have fXY2 := fXY.2
+        rw [powerset_axiom] at fXY2
+        obtain ⟨ fXY', h ⟩ := fXY2
+        set y := fXY' ⟨ x, hx ⟩
+        set f':X' → Y := fun x ↦ fXY' ⟨ x, x'_helper x ⟩
+        have hf' : (f':Object) ∈ (Y ^ X')
+        . rw [powerset_axiom]
+          use f'
+        use mk_cartesian ⟨ f', hf' ⟩ y
+        simp [g]
+        simp [← coe_inj, ← h]
+        ext x'
+        by_cases hx' : x'.val ∈ X' <;> simp [hx']
+        . set c := (powerset_axiom ↑(fst (mk_cartesian ⟨↑f', hf'⟩ y))).mp (fst (mk_cartesian ⟨↑f', hf'⟩ y)).property
+          have hc := c.choose_spec
+          set d := c.choose
+          simp at hc
+          simp [hc, f']
+        . have := x'_helper2 x' hx'
+          simp [this, y]
+    obtain ⟨ f, hf ⟩ := hProd
+    have hg_inv := (Equiv.ofBijective g hg).symm.bijective
+    have := Function.Bijective.comp hf hg_inv
+    use f ∘ ⇑(Equiv.ofBijective g hg).symm
+  constructor
+  . use (Y.card ^ X.card)
+  exact has_card_to_card goal
 
 /-- Exercise 3.6.5. You might find {name}`SetTheory.Set.prod_commutator` useful. -/
 theorem SetTheory.Set.prod_EqualCard_prod (A B:Set) :
@@ -1596,6 +1725,11 @@ open Classical in
 /-- Exercise 3.6.11 -/
 theorem SetTheory.Set.two_to_two_iff {X Y:Set} (f: X → Y): Function.Injective f ↔
     ∀ S ⊆ X, S.card = 2 → (image f S).card = 2 := by
+  have fin2_helper (n : Fin 2) : n = (Fin_mk 2 0 (by omega)) ∨ n = (Fin_mk 2 1 (by omega))
+  . have h := mem_Fin' n
+    obtain ⟨ x, hx, hx2 ⟩ := h
+    rw [hx2]
+    interval_cases x <;> tauto
   constructor <;> intro h
   . intro S hSX hSc
     have hS : S.has_card 2 := card_to_has_card (by omega) hSc
@@ -1603,12 +1737,33 @@ theorem SetTheory.Set.two_to_two_iff {X Y:Set} (f: X → Y): Function.Injective 
     obtain ⟨ f', ⟨ hfi, hfs ⟩ ⟩ := hS
     obtain ⟨ s1, hs1 ⟩ := hfs (Fin_mk 2 0 (by omega))
     obtain ⟨ s2, hs2 ⟩ := hfs (Fin_mk 2 1 (by omega))
+    have hsne : s1 ≠ s2
+    . intro contra
+      simp [contra, hs2] at hs1
     -- To do this, need to prove image/S/Fin pair set equalities.
     have goal : (image f S).has_card 2
-    . have hs1X : s1.val ∈ X := by sorry
-      have hs2X : s2.val ∈ X := by sorry
-      have hs1I : (f ⟨s1, hs1X⟩).val ∈ image f S := by sorry
-      have hs2I : (f ⟨s2, hs2X⟩).val ∈ image f S := by sorry
+    . have hs1X : s1.val ∈ X := hSX s1 s1.2
+      have hs2X : s2.val ∈ X := hSX s2 s2.2
+      have hs1I : (f ⟨s1, hs1X⟩).val ∈ image f S
+      . rw [mem_image]
+        use ⟨ s1, hs1X ⟩, (by simp; exact Subtype.property _ )
+      have hs2I : (f ⟨s2, hs2X⟩).val ∈ image f S
+      . rw [mem_image]
+        use ⟨ s2, hs2X ⟩, (by simp; exact Subtype.property _ )
+      have image_helper (y : image f S) : y = ⟨ (f ⟨ s1, hs1X ⟩), hs1I ⟩ ∨ y = ⟨ (f ⟨ s2, hs2X ⟩), hs2I ⟩
+      . have hy := y.2
+        rw [mem_image] at hy
+        obtain ⟨ s, hs, hfs ⟩ := hy
+        have s_helper : s = ⟨ s1, hs1X ⟩ ∨ s = ⟨ s2, hs2X ⟩
+        . -- Consider f' s. Can prove result using injectivity.
+          obtain hfs | hfs := fin2_helper (f' ⟨ s, hs ⟩)
+          . rw [← hs1] at hfs
+            specialize hfi hfs
+            simp [← hfi]
+          . rw [← hs2] at hfs
+            specialize hfi hfs
+            simp [← hfi]
+        obtain hs2 | hs2 := s_helper <;> simp [hs2] at hfs <;> simp [hfs]
       use fun y ↦ if y = ⟨ (f ⟨ s1, hs1X ⟩), hs1I ⟩ then (Fin_mk 2 0 (by omega)) else (Fin_mk 2 1 (by omega))
       constructor
       . intro y1 y2 h
@@ -1616,16 +1771,26 @@ theorem SetTheory.Set.two_to_two_iff {X Y:Set} (f: X → Y): Function.Injective 
         by_cases hy1 : y1 = ⟨ (f ⟨ s1, hs1X ⟩), hs1I ⟩ <;> simp [hy1] at h <;>
           by_cases hy2 : y2 = ⟨ (f ⟨ s1, hs1X ⟩), hs1I ⟩ <;> simp [hy2] at h
         . simp [hy1, hy2]
-        . replace hy1 : y1 = ⟨ (f ⟨ s2, hs2X ⟩), hs2I ⟩ := by sorry
-          replace hy2 : y2 = ⟨ (f ⟨ s2, hs2X ⟩), hs2I ⟩ := by sorry
+        . replace hy1 : y1 = ⟨ (f ⟨ s2, hs2X ⟩), hs2I ⟩
+          . specialize image_helper y1
+            tauto
+          replace hy2 : y2 = ⟨ (f ⟨ s2, hs2X ⟩), hs2I ⟩
+          . specialize image_helper y2
+            tauto
           simp [hy1, hy2]
       . intro n
         by_cases hn : n = (Fin_mk 2 0 (by omega))
         . use ⟨ (f ⟨ s1, hs1X ⟩), hs1I ⟩
           simp [hn]
-        . replace hn : n = (Fin_mk 2 1 (by omega)) := by sorry
+        . replace hn : n = (Fin_mk 2 1 (by omega))
+          . specialize fin2_helper n
+            tauto
           use ⟨ (f ⟨ s2, hs2X ⟩), hs2I ⟩
-          have hne : ¬ (f ⟨ s2, hs2X ⟩) = (f ⟨ s1, hs1X ⟩) := by sorry
+          have hne : ¬ (f ⟨ s2, hs2X ⟩) = (f ⟨ s1, hs1X ⟩)
+          . intro contra
+            specialize h contra
+            simp [coe_inj] at h
+            tauto
           simp [coe_inj, hne, hn]
     exact has_card_to_card goal
   . by_contra hf
@@ -1633,18 +1798,64 @@ theorem SetTheory.Set.two_to_two_iff {X Y:Set} (f: X → Y): Function.Injective 
     push_neg at hf
     obtain ⟨ x1, x2, hxf, hx ⟩ := hf
     -- Consider {x1, x2}.
-    have hS : ({x1.val, x2.val}:Set) ⊆ X := by sorry
-    have hSc : ({x1.val, x2.val}:Set).card = 2 := by sorry
+    have hS : ({x1.val, x2.val}:Set) ⊆ X
+    . intro x hx
+      simp at hx
+      obtain hx | hx := hx <;> simp [hx] <;> exact Subtype.property _
+    have hx1 : x1.val ∈ ({x1.val, x2.val}:Set) := by simp
+    have hx2 : x2.val ∈ ({x1.val, x2.val}:Set) := by simp
+    have x_helper (x : ({x1.val, x2.val}:Set)) : x = ⟨ x1, hx1 ⟩ ∨ x = ⟨ x2, hx2 ⟩
+    . have := x.2
+      simp at this
+      obtain h | h := this <;> simp [← h]
+    have hSc : ({x1.val, x2.val}:Set).card = 2
+    . have goal : ({x1.val, x2.val}:Set).has_card 2
+      . use fun x ↦ if x = ⟨ x1, hx1 ⟩ then (Fin_mk 2 0 (by omega)) else (Fin_mk 2 1 (by omega))
+        constructor
+        . intro x1' x2'
+          obtain hx1' | hx1' := x_helper x1' <;> obtain hx2' | hx2' := x_helper x2' <;> simp [hx1', hx2']
+          . tauto
+        . intro n
+          by_cases hn : n = (Fin_mk 2 0 (by omega))
+          . use ⟨ x1, hx1 ⟩
+            simp [hn]
+          . replace hn : n = (Fin_mk 2 1 (by omega))
+            . specialize fin2_helper n
+              tauto
+            use ⟨ x2, hx2 ⟩
+            simp [hn, coe_inj]
+            tauto
+      exact has_card_to_card goal
     specialize h ({x1.val, x2.val}:Set) hS hSc
     have contra : (image f {↑x1, ↑x2}).card = 1
     . have goal : (image f {↑x1, ↑x2}).has_card 1
       -- The image set is only made up of { f x1 }.
+      have hfx1 : (f x1).val ∈ (image f {↑x1, ↑x2})
+      . rw [mem_image]
+        use x1, hx1
       . use fun x ↦ (Fin_mk 1 0 (by omega))
         constructor
         . intro y1 y2 _
-          sorry
+          have image_helper (y : (image f {↑x1, ↑x2})) : y = ⟨ f x1, hfx1 ⟩
+          . have hy := y.2
+            rw [mem_image] at hy
+            obtain ⟨ x, hx, hfx ⟩ := hy
+            simp [coe_inj] at hx
+            obtain hx | hx := hx <;> rw [hx] at hfx
+            . simp [hfx]
+            . rw [← hxf] at hfx
+              simp [hfx]
+          have hy1 : y1 = ⟨ f x1, hfx1 ⟩ := image_helper y1
+          have hy2 : y2 = ⟨ f x1, hfx1 ⟩ := image_helper y2
+          simp [hy1, hy2]
         . intro n
-          sorry
+          have hn : n = (Fin_mk 1 0 (by omega))
+          . have := mem_Fin' n
+            obtain ⟨ x, hx, rfl ⟩ := this
+            simp
+            omega
+          use ⟨ f x1, hfx1 ⟩
+          simp [hn]
       exact has_card_to_card goal
     omega
 
