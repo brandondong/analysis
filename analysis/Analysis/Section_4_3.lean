@@ -119,14 +119,30 @@ theorem abs_add (x y:ℚ) : |x + y| ≤ |x| + |y| := by
       simp [h]
     . have hya := abs_of_pos hy
       simp only [hya]
-      sorry
+      obtain h | h | h := lt_trichotomy (x+y) 0
+      . have h2 := abs_of_neg h
+        simp [h2]
+        linarith
+      . simp [h, abs]
+        linarith
+      . have h2 := abs_of_pos h
+        simp [h2]
+        linarith
   . simp [hx, abs]
   . have hxa := abs_of_pos hx
     simp only [hxa]
     obtain hy | hy := hy
     . have hya := abs_of_neg hy
       simp only [hya]
-      sorry
+      obtain h | h | h := lt_trichotomy (x+y) 0
+      . have h2 := abs_of_neg h
+        simp [h2]
+        linarith
+      . simp [h, abs]
+        linarith
+      . have h2 := abs_of_pos h
+        simp [h2]
+        linarith
     . have hya := abs_of_pos hy
       simp only [hya]
       have : 0 < x + y := by linarith
