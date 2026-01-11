@@ -1173,38 +1173,22 @@ theorem SetTheory.Set.card_prod {X Y:Set} (hX: X.finite) (hY: Y.finite) :
   simp [this, hxprodc, IH.2, hX'c, hYc, hXc]
   ring
 
-abbrev f_to_power {A B : Set} : (B → A) → (A ^ B).toSubtype :=
-  fun f ↦ ⟨ f, by {
+noncomputable def SetTheory.Set.pow_fun_equiv {A B : Set} : ↑(A ^ B) ≃ (B → A) where
+  toFun := fun ba ↦ ((SetTheory.Set.powerset_axiom ba).mp ba.2).choose
+  invFun := fun f ↦ ⟨ f, by {
     rw [SetTheory.Set.powerset_axiom]
     use f
   } ⟩
-
-theorem f_to_power_surjective {A B : Set} : Function.Surjective (f_to_power (A:=A) (B:=B)) := by
-  intro b
-  have hb := b.2
-  simp at hb
-  obtain ⟨ f, hf ⟩ := hb
-  use f
-  simp [f_to_power, hf]
-
-theorem f_to_power_injective {A B : Set} : Function.Injective (f_to_power (A:=A) (B:=B)) := by
-  intro a1 a2 h
-  simp [f_to_power] at h
-  exact h
-
-noncomputable def SetTheory.Set.pow_fun_equiv {A B : Set} : ↑(A ^ B) ≃ (B → A) where
-  toFun := Function.surjInv f_to_power_surjective
-  invFun := f_to_power
   left_inv := by {
-    change Function.RightInverse (Function.surjInv _) f_to_power
-    apply Function.rightInverse_surjInv
+    intro ba
+    simp
+    set c := (powerset_axiom ↑ba).mp ba.property
+    have hc := c.choose_spec
+    simp [hc]
   }
   right_inv := by {
-    change Function.LeftInverse (Function.surjInv _) f_to_power
-    apply Function.leftInverse_surjInv
-    constructor
-    . exact f_to_power_injective
-    . exact f_to_power_surjective
+    intro ba
+    simp
   }
 
 lemma SetTheory.Set.pow_fun_eq_iff {A B : Set} (x y : ↑(A ^ B)) : x = y ↔ pow_fun_equiv x = pow_fun_equiv y := by
@@ -1370,18 +1354,251 @@ theorem SetTheory.Set.prod_EqualCard_prod (A B:Set) :
 noncomputable abbrev SetTheory.Set.pow_fun_equiv' (A B : Set) : ↑(A ^ B) ≃ (B → A) :=
   pow_fun_equiv (A:=A) (B:=B)
 
+-- (X → Y → Z) ≃ (X ×ˢ Y → Z)
 #check SetTheory.Set.curry_equiv
 
 /-- Exercise 3.6.6. You may find `SetTheory.Set.curry_equiv` useful. -/
 theorem SetTheory.Set.pow_pow_EqualCard_pow_prod (A B C:Set) :
-    EqualCard ((A ^ B) ^ C) (A ^ (B ×ˢ C)) := by sorry
+    EqualCard ((A ^ B) ^ C) (A ^ (B ×ˢ C)) := by
+  -- Given a (A ^ B) ^ C, we can bijective transform to C -> A^B.
+  set b1 := (pow_fun_equiv' (A ^ B) C)
+  set f1 := ⇑b1
+  have hf1 := b1.bijective
+  -- We can define a new function that transforms C -> A^B to B -> C -> A.
+  set f2 : (C → (((A:Set) ^ (B:Set)):Set)) → (B → C → A) := fun f b c ↦
+    let ab := f c;
+    let f' := (pow_fun_equiv' A B) ab;
+    f' b
+  have hf2 : Function.Bijective f2
+  . constructor
+    . intro cf1 cf2 h
+      simp [f2] at h
+      rw [funext_iff] at h ⊢
+      intro c
+      -- We're essentially proving function equality here...
+      have h1 := (cf1 c).2
+      have h2 := (cf2 c).2
+      rw [powerset_axiom] at h1 h2
+      obtain ⟨ fba1, h1 ⟩ := h1
+      obtain ⟨ fba2, h2 ⟩ := h2
+      simp [← coe_inj, ← h1, ← h2]
+      rw [funext_iff]
+      intro b
+      specialize h b
+      rw [funext_iff] at h
+      specialize h c
+      simp [pow_fun_equiv', pow_fun_equiv] at h
+      set c1 := pow_fun_equiv._proof_1 (cf1 c)
+      set c2 := pow_fun_equiv._proof_1 (cf2 c)
+      have hc1 := c1.choose_spec
+      have hc2 := c2.choose_spec
+      rw [← hc1] at h1
+      rw [← hc2] at h2
+      simp at h1 h2
+      rwa [h1, h2]
+    . intro f
+      -- Need a C -> A^B
+      use fun c ↦
+        let f': B → A := fun b ↦ f b c;
+        (pow_fun_equiv' A B).symm f'
+      simp [f2]
+  set b3 := curry_equiv (X := B) (Y := C) (Z := A)
+  set f3 := ⇑b3
+  have hf3 := b3.bijective
+  set b4 := (pow_fun_equiv' A (B ×ˢ C)).symm
+  set f4 := ⇑b4
+  have hf4 := b4.bijective
+  have := Function.Bijective.comp hf4 (Function.Bijective.comp hf3 (Function.Bijective.comp hf2 hf1))
+  use ⇑b4 ∘ ⇑b3 ∘ f2 ∘ ⇑b1
 
-theorem SetTheory.Set.pow_pow_eq_pow_mul (a b c:ℕ): (a^b)^c = a^(b*c) := by sorry
+theorem SetTheory.Set.pow_pow_eq_pow_mul (a b c:ℕ): (a^b)^c = a^(b*c) := by
+  -- Convert to a proof of Fin n set cardinality relations.
+  -- Then use previous cardinality results to form sets that match the LHS/RHS.
+  -- Finally, get the equality with pow_pow_EqualCard_pow_prod.
+  have hac := Fin_card a
+  have hbc := Fin_card b
+  have hcc := Fin_card c
+  have haf := Fin_finite a
+  have hbf := Fin_finite b
+  have hcf := Fin_finite c
+  set A := Fin a
+  set B := Fin b
+  set C := Fin c
+  have lhs : (((A ^ B) ^ C)).card = (a ^ b) ^ c
+  . obtain ⟨ habf, habc ⟩ := card_pow haf hbf
+    have := (card_pow habf hcf).2
+    rw [this, habc, hac, hbc, hcc]
+  have rhs : (A ^ (B ×ˢ C)).card = a ^ (b * c)
+  . obtain ⟨ hbcf, hbcc ⟩ := card_prod hbf hcf
+    have := (card_pow haf hbcf).2
+    rw [this, hac, hbcc, hbc, hcc]
+  have goal : (((A ^ B) ^ C)).card = (A ^ (B ×ˢ C)).card
+  . apply EquivCard_to_card_eq
+    exact pow_pow_EqualCard_pow_prod A B C
+  rw [← lhs, ← rhs, goal]
 
+open Classical in
 theorem SetTheory.Set.pow_prod_pow_EqualCard_pow_union (A B C:Set) (hd: Disjoint B C) :
-    EqualCard ((A ^ B) ×ˢ (A ^ C)) (A ^ (B ∪ C)) := by sorry
+    EqualCard ((A ^ B) ×ˢ (A ^ C)) (A ^ (B ∪ C)) := by
+  use fun p ↦
+    let fba := fst p;
+    let fca := snd p;
+    let fba' := ((powerset_axiom fba).mp fba.2).choose;
+    let fca' := ((powerset_axiom fca).mp fca.2).choose;
+    let f:(B ∪ C).toSubtype → A := fun bc ↦ if hbc: bc.val ∈ B then fba' ⟨ bc, hbc ⟩ else fca' ⟨ bc, by {
+      have := bc.2
+      simp at this
+      tauto
+    } ⟩
+    ⟨ f, by {
+      rw [powerset_axiom]
+      use f
+    } ⟩
+  constructor
+  . intro p1 p2 h
+    simp [funext_iff] at h
+    have h1 := pair_eq_fst_snd p1
+    have h2 := pair_eq_fst_snd p2
+    simp [← coe_inj, h1, h2]
+    clear h1 h2
+    constructor
+    . have h1 := (powerset_axiom (fst p1)).mp (fst p1).2
+      have h2 := (powerset_axiom (fst p2)).mp (fst p2).2
+      obtain ⟨ f1, hf1 ⟩ := h1
+      obtain ⟨ f2, hf2 ⟩ := h2
+      rw [← hf1, ← hf2]
+      simp
+      rw [funext_iff]
+      intro b
+      specialize h b (by {
+        have := b.2
+        tauto
+      })
+      simp [b.2] at h
+      set c1 := (powerset_axiom ↑(fst p1)).mp (fst p1).property
+      set c2 := (powerset_axiom ↑(fst p2)).mp (fst p2).property
+      have hc1 := c1.choose_spec
+      have hc2 := c2.choose_spec
+      set d1 := c1.choose
+      set d2 := c2.choose
+      simp [← hf1] at hc1
+      simp [← hf2] at hc2
+      simp [← hc1, ← hc2, h]
+    . have h1 := (powerset_axiom (snd p1)).mp (snd p1).2
+      have h2 := (powerset_axiom (snd p2)).mp (snd p2).2
+      obtain ⟨ f1, hf1 ⟩ := h1
+      obtain ⟨ f2, hf2 ⟩ := h2
+      rw [← hf1, ← hf2]
+      simp
+      rw [funext_iff]
+      intro c
+      specialize h c (by {
+        have := c.2
+        tauto
+      })
+      have hc : c.val ∉ B
+      . rw [disjoint_iff, SetTheory.Set.ext_iff] at hd
+        have := c.2
+        specialize hd c
+        simp [this] at hd
+        exact hd
+      simp [hc] at h
+      set c1 := (powerset_axiom ↑(snd p1)).mp (snd p1).property
+      set c2 := (powerset_axiom ↑(snd p2)).mp (snd p2).property
+      have hc1 := c1.choose_spec
+      have hc2 := c2.choose_spec
+      set d1 := c1.choose
+      set d2 := c2.choose
+      simp [← hf1] at hc1
+      simp [← hf2] at hc2
+      simp [← hc1, ← hc2, h]
+  . intro ⟨ y, hy ⟩
+    rw [powerset_axiom] at hy
+    obtain ⟨ fbc, hfbc ⟩ := hy
+    simp only [← hfbc]
+    -- Define the function pair using fbc.
+    set fb: B → A := fun b ↦ fbc ⟨ b, by simp; left; exact Subtype.property _ ⟩
+    set fc: C → A := fun c ↦ fbc ⟨ c, by simp; right; exact Subtype.property _ ⟩
+    have hfb : (fb:Object) ∈ (A ^ B) := by simp
+    have hfc : (fc:Object) ∈ (A ^ C) := by simp
+    use mk_cartesian ⟨ fb, hfb ⟩ ⟨ fc, hfc ⟩
+    simp
+    rw [funext_iff]
+    intro bc
+    by_cases hbc : bc.val ∈ B <;> simp [hbc]
+    . set c := (powerset_axiom ↑(fst (mk_cartesian ⟨↑fb, hfb⟩ ⟨↑fc, hfc⟩))).mp (fst (mk_cartesian ⟨↑fb, hfb⟩ ⟨↑fc, hfc⟩)).property
+      have hc := c.choose_spec
+      set d := c.choose
+      simp at hc
+      simp [hc, fb]
+    . set c := (powerset_axiom ↑(snd (mk_cartesian ⟨↑fb, hfb⟩ ⟨↑fc, hfc⟩))).mp (snd (mk_cartesian ⟨↑fb, hfb⟩ ⟨↑fc, hfc⟩)).property
+      have hc := c.choose_spec
+      set d := c.choose
+      simp at hc
+      simp [hc, fc]
 
-theorem SetTheory.Set.pow_mul_pow_eq_pow_add (a b c:ℕ): (a^b) * a^c = a^(b+c) := by sorry
+theorem SetTheory.Set.pow_mul_pow_eq_pow_add (a b c:ℕ): (a^b) * a^c = a^(b+c) := by
+  -- A manual translation with Fin b/Fin c using pow_prod_pow_EqualCard_pow_union won't work
+  -- because B/C are not disjoint.
+  -- Instead, we can make one with Fin (b+c) \ Fin c.
+  have hac := Fin_card a
+  have hcc := Fin_card c
+  have haf := Fin_finite a
+  have hcf := Fin_finite c
+  set A := Fin a
+  set B := Fin (b+c) \ Fin c
+  set C := Fin c
+  have hdisj : Disjoint B C
+  . simp [disjoint_iff, SetTheory.Set.ext_iff, B, C]
+  have hbf : B.finite
+  . -- Subset of Fin (b+c).
+    have hsub : B ⊆ Fin (b+c)
+    . simp [B]
+      intro a
+      rw [mem_sdiff]
+      tauto
+    have hbcf := Fin_finite (b+c)
+    exact (card_subset hbcf hsub).1
+  have hbc : B.card = b
+  . -- We have card_union_disjoint to get the relation.
+    have hunion := card_union_disjoint hbf hcf hdisj
+    have he : Fin (b+c) = (B ∪ C)
+    . simp [B, C]
+      ext n
+      simp [mem_union, mem_sdiff]
+      constructor <;> intro h
+      . obtain ⟨ hn, hn2 ⟩ := h
+        by_cases hn3 : nat_equiv.symm ⟨n, hn⟩ < c
+        . right
+          use hn
+        . left
+          constructor
+          . use hn
+          . intro _
+            omega
+      . obtain ⟨ h1, h2 ⟩ | h := h
+        . obtain ⟨ hn, hn2 ⟩ := h1
+          use hn
+        . obtain ⟨ hn, hn2 ⟩ := h
+          use hn
+          omega
+    have hbcc := Fin_card (b+c)
+    rw [← he, hbcc, hcc] at hunion
+    omega
+  have lhs : ((A ^ B) ×ˢ (A ^ C)).card = (a^b) * a^c
+  . obtain ⟨ habf, habc ⟩ := card_pow haf hbf
+    obtain ⟨ hacf, hacc ⟩ := card_pow haf hcf
+    have := (card_prod habf hacf).2
+    rw [this, habc, hacc, hac, hbc, hcc]
+  have rhs : (A ^ (B ∪ C)).card = a^(b+c)
+  . have hbcc := card_union_disjoint hbf hcf hdisj
+    have hbcf := (card_union hbf hcf).1
+    have := (card_pow haf hbcf).2
+    rw [this, hac, hbcc, hbc, hcc]
+  have goal : ((A ^ B) ×ˢ (A ^ C)).card = (A ^ (B ∪ C)).card
+  . apply EquivCard_to_card_eq
+    exact pow_prod_pow_EqualCard_pow_union A B C hdisj
+  rw [← lhs, ← rhs, goal]
 
 /-- Exercise 3.6.7 -/
 theorem SetTheory.Set.injection_iff_card_le {A B:Set} (hA: A.finite) (hB: B.finite) :
