@@ -156,6 +156,11 @@ theorem SetTheory.Set.pair_eq_fst_snd {X Y:Set} (z:X ×ˢ Y) :
 def SetTheory.Set.mk_cartesian {X Y:Set} (x:X) (y:Y) : X ×ˢ Y :=
   ⟨(⟨ x, y ⟩:OrderedPair), by simp⟩
 
+theorem SetTheory.Set.mem_cartesian' {X Y:Set} (z:X ×ˢ Y) :
+    ∃ x:X, ∃ y:Y, z = mk_cartesian x y := by
+  obtain ⟨ x, y, hxy ⟩ := (mem_cartesian _ _ _).mp z.property
+  simp [mk_cartesian, ←coe_inj, hxy]
+
 @[simp]
 theorem SetTheory.Set.fst_of_mk_cartesian {X Y:Set} (x:X) (y:Y) :
     fst (mk_cartesian x y) = x := by
