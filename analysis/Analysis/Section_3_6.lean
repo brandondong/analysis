@@ -1298,47 +1298,34 @@ theorem SetTheory.Set.card_pow {X Y:Set} (hY: Y.finite) (hX: X.finite) :
         simp [← hx']
       have hxX' : x ∉ X' := by simp [X']
       constructor
-      . intro f1 f2 h
+      . intro p1 p2 h
         simp [g, funext_iff] at h
-        have hf1 := f1.2
-        have hf2 := f2.2
-        rw [mem_cartesian] at hf1 hf2
-        obtain ⟨ hf1', y1, hf1 ⟩ := hf1
-        obtain ⟨ hf2', y2, hf2 ⟩ := hf2
-        rw [← coe_inj, hf1, hf2]
-        simp [coe_inj]
+        obtain ⟨ f1, y1, rfl ⟩ := mem_cartesian' p1
+        obtain ⟨ f2, y2, rfl ⟩ := mem_cartesian' p2
+        simp [mk_cartesian, coe_inj]
         constructor
-        . have h1 := hf1'.2
-          have h2 := hf2'.2
-          rw [powerset_axiom] at h1 h2
-          obtain ⟨ f1', h1 ⟩ := h1
-          obtain ⟨ f2', h2 ⟩ := h2
-          simp [← coe_inj, ← h1, ← h2]
+        . have hf1 := f1.2
+          have hf2 := f2.2
+          rw [powerset_axiom] at hf1 hf2
+          obtain ⟨ f1', hf1' ⟩ := hf1
+          obtain ⟨ f2', hf2' ⟩ := hf2
+          simp [← coe_inj, ← hf1', ← hf2']
           ext x'
           specialize h x' (x'_helper x')
-          have hx' := x'.2
-          simp [hx'] at h
-          set c1 := (powerset_axiom ↑(fst f1)).mp (fst f1).property
-          set c2 := (powerset_axiom ↑(fst f2)).mp (fst f2).property
+          simp [x'.2] at h
+          set c1 := (powerset_axiom ↑(fst (mk_cartesian f1 y1))).mp (fst (mk_cartesian f1 y1)).property
+          set c2 := (powerset_axiom ↑(fst (mk_cartesian f2 y2))).mp (fst (mk_cartesian f2 y2)).property
           have hc1 := c1.choose_spec
           have hc2 := c2.choose_spec
           set d1 := c1.choose
           set d2 := c2.choose
-          have h1' := Set.pair_eq_fst_snd f1
-          have h2' := Set.pair_eq_fst_snd f2
-          simp [h1'] at hf1
-          simp [h2'] at hf2
-          simp [hf1.1, ← h1] at hc1
-          simp [hf2.1, ← h2] at hc2
-          rw [coe_inj]
-          rwa [hc1, hc2] at h
+          simp at hc1 hc2
+          simp [← hf1'] at hc1
+          simp [← hf2'] at hc2
+          simp [← hc1, ← hc2, h]
         . specialize h x hx
           simp [hxX'] at h
-          have h1 := Set.pair_eq_fst_snd f1
-          have h2 := Set.pair_eq_fst_snd f2
-          simp [h1, coe_inj] at hf1
-          simp [h2, coe_inj] at hf2
-          rwa [hf1.2, hf2.2] at h
+          exact h
       . intro fXY
         have fXY2 := fXY.2
         rw [powerset_axiom] at fXY2
