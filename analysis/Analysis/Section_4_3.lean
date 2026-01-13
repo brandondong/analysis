@@ -149,23 +149,67 @@ theorem abs_add (x y:ℚ) : |x + y| ≤ |x| + |y| := by
       simp [abs, this]
 
 /-- Proposition 4.3.3(c) / Exercise 4.3.1 -/
-theorem abs_le_iff (x y:ℚ) : -y ≤ x ∧ x ≤ y ↔ |x| ≤ y := by sorry
+theorem abs_le_iff (x y:ℚ) : -y ≤ x ∧ x ≤ y ↔ |x| ≤ y := by
+  simp only [← abs_eq_abs]
+  obtain h | h | h := lt_trichotomy x 0
+  . have h2 := abs_of_neg h
+    simp [h2]
+    constructor <;> intro h3
+    . linarith
+    . constructor
+      . linarith
+      . linarith
+  . simp [h, abs]
+  . have h2 := abs_of_pos h
+    simp [h2]
+    intro h3
+    linarith
 
 /-- Proposition 4.3.3(c) / Exercise 4.3.1 -/
-theorem le_abs (x:ℚ) : -|x| ≤ x ∧ x ≤ |x| := by sorry
+theorem le_abs (x:ℚ) : -|x| ≤ x ∧ x ≤ |x| := by
+  simp only [← abs_eq_abs]
+  obtain h | h | h := lt_trichotomy x 0
+  . have h2 := abs_of_neg h
+    simp [h2]
+    linarith
+  . simp [h, abs]
+  . have h2 := abs_of_pos h
+    simp [h2]
+    linarith
 
 /-- Proposition 4.3.3(d) / Exercise 4.3.1 -/
 theorem abs_mul (x y:ℚ) : |x * y| = |x| * |y| := by sorry
 
 /-- Proposition 4.3.3(d) / Exercise 4.3.1 -/
-theorem abs_neg (x:ℚ) : |-x| = |x| := by sorry
+theorem abs_neg (x:ℚ) : |-x| = |x| := by
+  simp only [← abs_eq_abs]
+  obtain h | h | h := lt_trichotomy x 0
+  . have h2 := abs_of_neg h
+    have : -x > 0 := by linarith
+    have h3 := abs_of_pos this
+    simp only [h2, h3]
+  . simp [h]
+  . have h2 := abs_of_pos h
+    have : -x < 0 := by linarith
+    have h3 := abs_of_neg this
+    simp [h3, h2]
 
 /-- Proposition 4.3.3(e) / Exercise 4.3.1 -/
-theorem dist_nonneg (x y:ℚ) : dist x y ≥ 0 := by sorry
+theorem dist_nonneg (x y:ℚ) : dist x y ≥ 0 := by
+  simp only [dist]
+  exact abs_nonneg (x-y)
 
 /-- Proposition 4.3.3(e) / Exercise 4.3.1 -/
 theorem dist_eq_zero_iff (x y:ℚ) : dist x y = 0 ↔ x = y := by
-  sorry
+  simp only [dist, ← abs_eq_abs]
+  constructor <;> intro h
+  . obtain hxy | hxy | hxy := lt_trichotomy (x-y) 0
+    . have h2 := abs_of_neg hxy
+      linarith
+    . linarith
+    . have h2 := abs_of_pos hxy
+      linarith
+  . simp [h]
 
 /-- Proposition 4.3.3(f) / Exercise 4.3.1 -/
 theorem dist_symm (x y:ℚ) : dist x y = dist y x := by sorry
