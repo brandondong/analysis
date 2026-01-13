@@ -149,26 +149,124 @@ theorem abs_add (x y:ℚ) : |x + y| ≤ |x| + |y| := by
       simp [abs, this]
 
 /-- Proposition 4.3.3(c) / Exercise 4.3.1 -/
-theorem abs_le_iff (x y:ℚ) : -y ≤ x ∧ x ≤ y ↔ |x| ≤ y := by sorry
+theorem abs_le_iff (x y:ℚ) : -y ≤ x ∧ x ≤ y ↔ |x| ≤ y := by
+  simp only [← abs_eq_abs]
+  obtain h | h | h := lt_trichotomy x 0
+  . have h2 := abs_of_neg h
+    simp [h2]
+    constructor <;> intro h3
+    . linarith
+    . constructor
+      . linarith
+      . linarith
+  . simp [h, abs]
+  . have h2 := abs_of_pos h
+    simp [h2]
+    intro h3
+    linarith
 
 /-- Proposition 4.3.3(c) / Exercise 4.3.1 -/
-theorem le_abs (x:ℚ) : -|x| ≤ x ∧ x ≤ |x| := by sorry
+theorem le_abs (x:ℚ) : -|x| ≤ x ∧ x ≤ |x| := by
+  simp only [← abs_eq_abs]
+  obtain h | h | h := lt_trichotomy x 0
+  . have h2 := abs_of_neg h
+    simp [h2]
+    linarith
+  . simp [h, abs]
+  . have h2 := abs_of_pos h
+    simp [h2]
+    linarith
 
 /-- Proposition 4.3.3(d) / Exercise 4.3.1 -/
-theorem abs_mul (x y:ℚ) : |x * y| = |x| * |y| := by sorry
+theorem abs_mul (x y:ℚ) : |x * y| = |x| * |y| := by
+  simp only [← abs_eq_abs]
+  -- Just like addition, need to brute force trichotomy...
+  have hx := lt_trichotomy x 0
+  have hy := lt_trichotomy y 0
+  by_cases hx2 : x = 0
+  . simp [hx2]
+  replace hx : x < 0 ∨ 0 < x := by tauto
+  by_cases hy2 : y = 0
+  . simp [hy2]
+  replace hy : y < 0 ∨ 0 < y := by tauto
+  clear hx2 hy2
+  obtain hx | hx := hx <;> obtain hy | hy := hy
+  . have hx2 := abs_of_neg hx
+    have hy2 := abs_of_neg hy
+    simp only [hx2, hy2]
+    have : x * y > 0 := by exact mul_pos_of_neg_of_neg hx hy
+    have := abs_of_pos this
+    simp [this]
+  . have hx2 := abs_of_neg hx
+    rw [← gt_iff_lt] at hy
+    have hy2 := abs_of_pos hy
+    simp only [hx2, hy2]
+    have : x * y < 0 := by exact mul_neg_of_neg_of_pos hx hy
+    have := abs_of_neg this
+    simp [this]
+  . rw [← gt_iff_lt] at hx
+    have hx2 := abs_of_pos hx
+    have hy2 := abs_of_neg hy
+    simp only [hx2, hy2]
+    have : x * y < 0 := by exact mul_neg_of_pos_of_neg hx hy
+    have := abs_of_neg this
+    simp [this]
+  . rw [← gt_iff_lt] at hx hy
+    have hx2 := abs_of_pos hx
+    have hy2 := abs_of_pos hy
+    simp only [hx2, hy2]
+    have : x * y > 0 := by exact Left.mul_pos hx hy
+    have := abs_of_pos this
+    simp [this]
 
 /-- Proposition 4.3.3(d) / Exercise 4.3.1 -/
-theorem abs_neg (x:ℚ) : |-x| = |x| := by sorry
+theorem abs_neg (x:ℚ) : |-x| = |x| := by
+  simp only [← abs_eq_abs]
+  obtain h | h | h := lt_trichotomy x 0
+  . have h2 := abs_of_neg h
+    have : -x > 0 := by linarith
+    have h3 := abs_of_pos this
+    simp only [h2, h3]
+  . simp [h]
+  . have h2 := abs_of_pos h
+    have : -x < 0 := by linarith
+    have h3 := abs_of_neg this
+    simp [h3, h2]
 
 /-- Proposition 4.3.3(e) / Exercise 4.3.1 -/
-theorem dist_nonneg (x y:ℚ) : dist x y ≥ 0 := by sorry
+theorem dist_nonneg (x y:ℚ) : dist x y ≥ 0 := by
+  simp only [dist]
+  exact abs_nonneg (x-y)
 
 /-- Proposition 4.3.3(e) / Exercise 4.3.1 -/
 theorem dist_eq_zero_iff (x y:ℚ) : dist x y = 0 ↔ x = y := by
-  sorry
+  simp only [dist, ← abs_eq_abs]
+  constructor <;> intro h
+  . obtain hxy | hxy | hxy := lt_trichotomy (x-y) 0
+    . have h2 := abs_of_neg hxy
+      linarith
+    . linarith
+    . have h2 := abs_of_pos hxy
+      linarith
+  . simp [h]
 
 /-- Proposition 4.3.3(f) / Exercise 4.3.1 -/
-theorem dist_symm (x y:ℚ) : dist x y = dist y x := by sorry
+theorem dist_symm (x y:ℚ) : dist x y = dist y x := by
+  simp [dist, ← abs_eq_abs]
+  obtain hxy | hxy | hxy := lt_trichotomy (x-y) 0
+  . have h := abs_of_neg hxy
+    simp only [h]
+    have : y - x > 0 := by linarith
+    have := abs_of_pos this
+    simp [this]
+  . have : y - x = 0 := by linarith
+    simp [hxy, this]
+  . rw [← gt_iff_lt] at hxy
+    have h := abs_of_pos hxy
+    simp only [h]
+    have : y - x < 0 := by linarith
+    have := abs_of_neg this
+    simp [this]
 
 /-- Proposition 4.3.3(f) / Exercise 4.3.1 -/
 theorem dist_le (x y z:ℚ) : dist x z ≤ dist x y + dist y z := by sorry
