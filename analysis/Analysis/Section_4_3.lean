@@ -656,20 +656,95 @@ theorem mul_zpow (x y:ℚ) (n:ℤ) (_hx: x ≠ 0) (_hy: y ≠ 0) : (x*y)^n = x^n
     rw [this, ← pow_succ, ← pow_succ]
 
 /-- Proposition 4.3.12(b) (Properties of exponentiation, II) / Exercise 4.3.4 -/
-theorem zpow_pos {x:ℚ} (n:ℤ) (hx: x > 0) : x^n > 0 := by sorry
+theorem zpow_pos {x:ℚ} (n:ℤ) (hx: x > 0) : x^n > 0 := by
+  match n with
+  | .ofNat n =>
+    simp
+    exact pow_pos n hx
+  | .negSucc n =>
+    simp
+    exact pow_pos (n + 1) hx
 
 /-- Proposition 4.3.12(b) (Properties of exponentiation, II) / Exercise 4.3.4 -/
-theorem zpow_ge_zpow {x y:ℚ} {n:ℤ} (hxy: x ≥ y) (hy: y > 0) (hn: n > 0): x^n ≥ y^n := by sorry
+theorem zpow_ge_zpow {x y:ℚ} {n:ℤ} (hxy: x ≥ y) (hy: y > 0) (hn: n > 0): x^n ≥ y^n := by
+  match n with
+  | .ofNat n =>
+    simp
+    exact pow_ge_pow x y n hxy (by linarith)
+  | .negSucc n =>
+    simp at hn
 
 theorem zpow_ge_zpow_ofneg {x y:ℚ} {n:ℤ} (hxy: x ≥ y) (hy: y > 0) (hn: n < 0) : x^n ≤ y^n := by
-  sorry
+  match n with
+  | .ofNat n =>
+    simp at hn
+    linarith
+  | .negSucc n =>
+    simp
+    apply inv_anti₀
+    . exact pow_pos (n + 1) hy
+    . exact pow_ge_pow x y (n+1) hxy (by linarith)
+
+-- Helper for below
+theorem zpow_gt_zpow {x y:ℚ} {n:ℤ} (hxy: x > y) (hy: y > 0) (hn: n > 0): x^n > y^n := by
+  match n with
+  | .ofNat n =>
+    simp
+    simp at hn
+    exact pow_gt_pow x y n hxy (by linarith) (by linarith)
+  | .negSucc n =>
+    simp at hn
+
+theorem zpow_gt_zpow_ofneg {x y:ℚ} {n:ℤ} (hxy: x > y) (hy: y > 0) (hn: n < 0) : x^n < y^n := by
+  match n with
+  | .ofNat n =>
+    simp at hn
+    linarith
+  | .negSucc n =>
+    simp
+    apply inv_strictAnti₀
+    . exact pow_pos (n + 1) hy
+    . exact pow_gt_pow x y (n+1) hxy (by linarith) (by omega)
 
 /-- Proposition 4.3.12(c) (Properties of exponentiation, II) / Exercise 4.3.4 -/
 theorem zpow_inj {x y:ℚ} {n:ℤ} (hx: x > 0) (hy : y > 0) (hn: n ≠ 0) (hxy: x^n = y^n) : x = y := by
-  sorry
+  have helper (x y:ℚ) (hx: x > 0) (h : x < y) : x ^ n ≠ y ^ n
+  . clear hxy hy
+    obtain hn | hn | hn := lt_trichotomy n 0
+    . have := zpow_gt_zpow_ofneg h hx hn
+      linarith
+    . tauto
+    . have := zpow_gt_zpow h hx hn
+      linarith
+  obtain h | h | h := lt_trichotomy x y
+  . have := helper x y hx h
+    tauto
+  . exact h
+  . have := helper y x hy h
+    tauto
 
 /-- Proposition 4.3.12(d) (Properties of exponentiation, II) / Exercise 4.3.4 -/
-theorem zpow_abs (x:ℚ) (n:ℤ) : |x|^n = |x^n| := by sorry
+theorem zpow_abs (x:ℚ) (n:ℤ) : |x|^n = |x^n| := by
+  match n with
+  | .ofNat n =>
+    simp
+  | .negSucc n =>
+    simp
+    induction' n with n IH
+    . simp
+      rw [abs_inv]
+    rw [pow_succ]
+    have : (|x| ^ (n + 1) * |x|)⁻¹ = (|x| ^ (n + 1))⁻¹ * (|x|)⁻¹ := by ring
+    rw [this, IH, ← abs_inv, ← abs_mul]
+    have : (x ^ (n + 1))⁻¹ * x⁻¹ = (x ^ (n + 1) * x)⁻¹ := by ring
+    rw [this, ← pow_succ]
 
 /-- Exercise 4.3.5 -/
-theorem two_pow_geq (N:ℕ) : 2^N ≥ N := by sorry
+theorem two_pow_geq (N:ℕ) : 2^N ≥ N := by
+  induction' N with n IH
+  . simp
+  rw [Nat.pow_succ]
+  by_cases hn : n = 0
+  . simp [hn]
+  replace hn : n ≥ 1 := by omega
+  omega
