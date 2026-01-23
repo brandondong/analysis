@@ -29,7 +29,45 @@ theorem Rat.between_int (x:ℚ) : ∃! n:ℤ, n ≤ x ∧ x < n+1 := by
   sorry
 
 theorem Nat.exists_gt (x:ℚ) : ∃ n:ℕ, n > x := by
-  sorry
+  -- If x is non-negative, then just consider the numerator+1.
+  obtain h | h := lt_trichotomy x 0
+  . use 0
+    linarith
+  replace h : 0 ≤ x
+  . apply le_iff_eq_or_lt.mpr
+    tauto
+  obtain ⟨ a, b, hb, hc ⟩ := x
+  rw [← Rat.num_nonneg] at h
+  simp at h
+  match a with
+  | .ofNat a =>
+    use (a+1)
+    rw [gt_iff_lt, lt_iff_exists_pos_add]
+    use mkRat (b*a - a + b) b
+    -- Convert everything to mkRat?
+    have : ↑(a + 1) = mkRat (a+1) 1
+    . simp
+    rw [this]; clear this
+    have : { num := Int.ofNat a, den := b, den_nz := hb, reduced := hc } = mkRat a b
+    . simp
+      exact Rat.mk_eq_mkRat (↑a) b hb _
+    rw [this]; clear this
+    constructor
+    . rw [Rat.mkRat_pos_iff _ hb]
+      replace hb : 0 < (b:ℤ) := by omega
+      have goal : (b:ℤ) * ↑a ≥ ↑a
+      . have h1 : (1:ℤ) * ↑a ≥ ↑a := by omega
+        exact le_mul_of_le_mul_of_nonneg_right h1 hb h
+      omega
+    . have hbb : b * b ≠ 0
+      . contrapose! hb
+        simp at hb
+        exact hb
+      rw [Rat.mkRat_add_mkRat _ _ hb hb, Rat.mkRat_eq_iff hbb (by omega)]
+      simp
+      linarith
+  | .negSucc a =>
+    omega
 
 /-- Proposition 4.4.3 (Interspersing of rationals) -/
 theorem Rat.exists_between_rat {x y:ℚ} (h: x < y) : ∃ z:ℚ, x < z ∧ z < y := by
@@ -46,26 +84,85 @@ theorem Rat.exists_between_rat {x y:ℚ} (h: x < y) : ∃ z:ℚ, x < z ∧ z < y
 
 /-- Exercise 4.4.2 (a) -/
 theorem Nat.no_infinite_descent : ¬ ∃ a:ℕ → ℕ, ∀ n, a (n+1) < a n := by
-  sorry
+  intro ⟨ a, h ⟩
+  -- Show for any value below a, there exists n where a n <= that value.
+  have goal : ∀ y:ℕ, ∃ n:ℕ, (a n) + y ≤ a 0
+  . intro y
+    induction' y with y IH
+    . use 0
+      omega
+    obtain ⟨ n, IH ⟩ := IH
+    specialize h n
+    use n+1
+    omega
+  obtain ⟨ n, hn ⟩ := goal (a 0 + 1)
+  omega
 
 /-- Exercise 4.4.2 (b) -/
 def Int.infinite_descent : Decidable (∃ a:ℕ → ℤ, ∀ n, a (n+1) < a n) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isTrue
+  use fun n ↦ -n
+  intro n
+  simp
 
 /-- Exercise 4.4.2 (b) -/
 def Rat.pos_infinite_descent : Decidable (∃ a:ℕ → {x: ℚ // 0 < x}, ∀ n, a (n+1) < a n) := by
   -- the first line of this construction should be either `apply isTrue` or `apply isFalse`.
-  sorry
+  apply isTrue
+  use fun n ↦ ⟨ mkRat 1 (2^n), by {
+    apply Rat.mkRat_pos
+    . omega
+    . norm_num
+  }⟩
+  intro n
+  simp
+  rw [lt_iff_exists_pos_add]
+  use mkRat 1 (2 ^ (n + 1))
+  have h : 2 ^ (n + 1) ≠ 0 := by simp
+  have h2 : 2 ^ (n + 1) * 2 ^ (n + 1) ≠ 0
+  . contrapose! h
+    simp at h
+  have h3 : 2 ^ n ≠ 0 := by omega
+  constructor
+  . apply Rat.mkRat_pos
+    . omega
+    . exact h
+  . rw [Rat.mkRat_add_mkRat _ _ h h, Rat.mkRat_eq_iff h2 h3]
+    simp
+    ring
 
 #check even_iff_exists_two_mul
 #check odd_iff_exists_bit1
 
 theorem Nat.even_or_odd'' (n:ℕ) : Even n ∨ Odd n := by
-  sorry
+  induction' n with n IH
+  . left
+    rw [even_iff_exists_two_mul]
+    use 0
+    ring
+  obtain h | h := IH
+  . right
+    rw [even_iff_exists_two_mul] at h
+    rw [odd_iff_exists_bit1]
+    obtain ⟨ x, hx ⟩ := h
+    use x
+    omega
+  . left
+    rw [even_iff_exists_two_mul]
+    rw [odd_iff_exists_bit1] at h
+    obtain ⟨ x, hx ⟩ := h
+    use x+1
+    omega
 
 theorem Nat.not_even_and_odd (n:ℕ) : ¬ (Even n ∧ Odd n) := by
-  sorry
+  intro ⟨ he, ho ⟩
+  rw [even_iff_exists_two_mul] at he
+  rw [odd_iff_exists_bit1] at ho
+  obtain ⟨ x, hx ⟩ := he
+  obtain ⟨ y, hy ⟩ := ho
+  have h : 2 * (x + y) = 1 := by omega
+  obtain h | h | h := lt_trichotomy (x+y) 1 <;> omega
 
 #check Nat.rec
 
