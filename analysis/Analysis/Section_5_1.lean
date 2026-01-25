@@ -171,11 +171,31 @@ example : (0.1:ℚ).Steady ((fun n:ℕ ↦ (10:ℚ) ^ (-(n:ℤ)-1) ):Sequence) :
 /--
 Example 5.1.5: The sequence 0.1, 0.01, 0.001, ... is not 0.01-steady. Left as an exercise.
 -/
-example : ¬(0.01:ℚ).Steady ((fun n:ℕ ↦ (10:ℚ) ^ (-(n:ℤ)-1) ):Sequence) := by sorry
+example : ¬(0.01:ℚ).Steady ((fun n:ℕ ↦ (10:ℚ) ^ (-(n:ℤ)-1) ):Sequence) := by
+  rw [Rat.Steady.coe]
+  intro h
+  replace h := h 0 1
+  simp [Rat.Close, abs_le] at h
+  linarith
 
 /-- Example 5.1.5: The sequence 1, 2, 4, 8, ... is not ε-steady for any ε. Left as an exercise.
 -/
-example (ε:ℚ) : ¬ ε.Steady ((fun n:ℕ ↦ (2 ^ (n+1):ℚ) ):Sequence) := by sorry
+example (ε:ℚ) : ¬ ε.Steady ((fun n:ℕ ↦ (2 ^ (n+1):ℚ) ):Sequence) := by
+  rw [Rat.Steady.coe]
+  intro h
+  -- Import 4_4?
+  obtain ⟨ c, hc ⟩ := exists_nat_gt ε
+  replace h := h c (c+1)
+  simp [Rat.Close] at h
+  contrapose! h; clear h
+  ring_nf
+  rw [abs_of_neg]
+  . simp
+    have : c ≤ (2:ℚ) ^ c
+    . norm_cast
+      exact Section_4_3.two_pow_geq c
+    linarith
+  . simp
 
 /-- Example 5.1.5:The sequence 2, 2, 2, ... is ε-steady for any ε > 0.
 -/
@@ -254,7 +274,21 @@ Example 5.1.7
 The sequence 10, 0, 0, ... is eventually ε-steady for every ε > 0. Left as an exercise.
 -/
 lemma Sequence.ex_5_1_7_d {ε:ℚ} (hε:ε>0) :
-    ε.EventuallySteady ((fun n:ℕ ↦ if n=0 then (10:ℚ) else (0:ℚ) ):Sequence) := by sorry
+    ε.EventuallySteady ((fun n:ℕ ↦ if n=0 then (10:ℚ) else (0:ℚ) ):Sequence) := by
+  rw [Rat.eventuallySteady_def]
+  use 1
+  constructor
+  . simp
+  simp [Rat.Steady]
+  intro x1 hx1 x2 hx2
+  simp [hx1, hx2]
+  have h1 : 0 ≤ x1 := by omega
+  have h2 : 0 ≤ x2 := by omega
+  simp [h1, h2]
+  replace h1 : ¬ x1 ≤ 0 := by omega
+  replace h2 : ¬ x2 ≤ 0 := by omega
+  simp [h1, h2, Rat.Close]
+  linarith
 
 abbrev Sequence.IsCauchy (a:Sequence) : Prop := ∀ ε > (0:ℚ), ε.EventuallySteady a
 
@@ -364,7 +398,22 @@ lemma Sequence.isBounded_def (a:Sequence) : a.IsBounded ↔ ∃ M ≥ 0, a.Bound
 example : BoundedBy ![1,-2,3,-4] 4 := by intro i; fin_cases i <;> norm_num
 
 /-- Example 5.1.13 -/
-example : ¬((fun n:ℕ ↦ (-1)^n * (n+1:ℚ)):Sequence).IsBounded := by sorry
+example : ¬((fun n:ℕ ↦ (-1)^n * (n+1:ℚ)):Sequence).IsBounded := by
+  -- Suppose it is bounded by M. We can just go further in the sequence.
+  intro h
+  obtain ⟨ M, hM, h ⟩ := h
+  rw [Sequence.boundedBy_def] at h
+  obtain ⟨ n, hn ⟩ := exists_nat_gt M
+  replace h := h n
+  simp at h
+  have : |(-1:ℚ) ^ n * (↑n + 1)| = n+1
+  . rw [abs_mul]
+    have : |(-1:ℚ) ^ n| = 1
+    . exact abs_neg_one_pow n
+    simp [this]
+    linarith
+  rw [this] at h
+  linarith
 
 /-- Example 5.1.13 -/
 example : ((fun n:ℕ ↦ (-1:ℚ)^n):Sequence).IsBounded := by
@@ -399,16 +448,131 @@ lemma IsBounded.finite {n:ℕ} (a: Fin n → ℚ) : ∃ M ≥ 0,  BoundedBy a M 
 
 /-- Lemma 5.1.15 (Cauchy sequences are bounded) / Exercise 5.1.1 -/
 lemma Sequence.isBounded_of_isCauchy {a:Sequence} (h: a.IsCauchy) : a.IsBounded := by
-  sorry
+  -- Find the point where it is 1 steady.
+  rw [Sequence.isCauchy_def] at h
+  replace h := h 1 (by norm_num)
+  rw [Rat.eventuallySteady_def] at h
+  obtain ⟨ N, haN, hN ⟩ := h
+  rw [Rat.steady_def] at hN
+  -- Everything before that point is bounded by M due to finiteness.
+  have hbound : ∃ M ≥ 0, ∀ i ≤ N, |a i| ≤ M
+  . -- OMG why are we using integers...
+    have goal : ∀ n:ℕ, ∃ M ≥ 0, ∀ i, i ≤ a.n₀+n → |a i| ≤ M
+    . intro n
+      induction' n with n IH
+      . simp
+        use |a (a.n₀)|
+        constructor
+        . simp
+        intro i hi
+        rw [le_iff_lt_or_eq] at hi
+        obtain hi | hi := hi
+        . have := a.vanish i hi
+          simp [this]
+        . simp [hi]
+      obtain ⟨ M, hM1, hM2 ⟩ := IH
+      use M + |a.seq (a.n₀ + ↑(n + 1))|
+      have habs : |a.seq (a.n₀ + ↑(n + 1))| ≥ 0
+      . simp
+      constructor
+      . linarith
+      intro i hi
+      by_cases hi2 : i ≤ a.n₀ + ↑n
+      . replace hM2 := hM2 i hi2
+        linarith
+      . have : i = a.n₀ + ↑(n + 1)
+        . omega
+        simp [this, hM1]
+    obtain ⟨ c, hc, hc2 ⟩ := le_iff_exists_nonneg_add.mp haN
+    lift c to ℕ using hc
+    rw [← hc2]
+    exact goal c
+  obtain ⟨ M, hM, hM2 ⟩ := hbound
+  -- Everything after falls in M+1 bound.
+  rw [Sequence.isBounded_def]
+  use M+1, by linarith
+  rw [boundedBy_def]
+  intro n
+  obtain hn | hn := lt_or_ge n N
+  . -- When n < N, then it falls within the finite bound.
+    have := hM2 n (by linarith)
+    linarith
+  . -- When n >= N, then a n and a N are within 1 of each other.
+    replace hN := hN N (by {
+      simp
+      use haN
+    }) n (by {
+      simp
+      use (by linarith)
+    })
+    replace hM2 := hM2 N (by linarith)
+    simp [Rat.Close, haN, hn] at hN
+    have := abs_sub_abs_le_abs_sub (a.seq n) (a.seq N)
+    have : |a.seq N - a.seq n| = |a.seq n - a.seq N|
+    . exact Section_4_3.dist_symm (a.seq N) (a.seq n)
+    linarith
 
 /-- Exercise 5.1.2 -/
 theorem Sequence.isBounded_add {a b:ℕ → ℚ} (ha: (a:Sequence).IsBounded) (hb: (b:Sequence).IsBounded):
-    (a + b:Sequence).IsBounded := by sorry
+    (a + b:Sequence).IsBounded := by
+  rw [Sequence.isBounded_def] at *
+  obtain ⟨ M, hM1, hM2 ⟩ := ha
+  obtain ⟨ N, hN1, hN2 ⟩ := hb
+  use M+N
+  rw [Sequence.boundedBy_def] at *
+  constructor
+  . linarith
+  intro n
+  specialize hM2 n
+  specialize hN2 n
+  obtain hn | hn := lt_or_ge n 0
+  . replace hn : ¬ 0 ≤ n := by omega
+    simp [hn]
+    linarith
+  simp [hn] at hM2 hN2 ⊢
+  have := abs_add_le (a n.toNat) (b n.toNat)
+  linarith
 
 theorem Sequence.isBounded_sub {a b:ℕ → ℚ} (ha: (a:Sequence).IsBounded) (hb: (b:Sequence).IsBounded):
-    (a - b:Sequence).IsBounded := by sorry
+    (a - b:Sequence).IsBounded := by
+  rw [Sequence.isBounded_def] at *
+  obtain ⟨ M, hM1, hM2 ⟩ := ha
+  obtain ⟨ N, hN1, hN2 ⟩ := hb
+  use M+N
+  rw [Sequence.boundedBy_def] at *
+  constructor
+  . linarith
+  intro n
+  specialize hM2 n
+  specialize hN2 n
+  obtain hn | hn := lt_or_ge n 0
+  . replace hn : ¬ 0 ≤ n := by omega
+    simp [hn]
+    linarith
+  simp [hn] at hM2 hN2 ⊢
+  have := abs_sub (a n.toNat) (b n.toNat)
+  linarith
 
 theorem Sequence.isBounded_mul {a b:ℕ → ℚ} (ha: (a:Sequence).IsBounded) (hb: (b:Sequence).IsBounded):
-    (a * b:Sequence).IsBounded := by sorry
+    (a * b:Sequence).IsBounded := by
+  rw [Sequence.isBounded_def] at *
+  obtain ⟨ M, hM1, hM2 ⟩ := ha
+  obtain ⟨ N, hN1, hN2 ⟩ := hb
+  use M*N
+  rw [Sequence.boundedBy_def] at *
+  constructor
+  . exact Rat.mul_nonneg hM1 hN1
+  intro n
+  specialize hM2 n
+  specialize hN2 n
+  obtain hn | hn := lt_or_ge n 0
+  . replace hn : ¬ 0 ≤ n := by omega
+    simp [hn]
+    exact Rat.mul_nonneg hM1 hN1
+  simp [hn] at hM2 hN2 ⊢
+  have := abs_mul (a n.toNat) (b n.toNat)
+  simp [this]
+  have ha : |a n.toNat| ≥ 0 := by simp
+  exact mul_le_mul_of_nonneg hM2 hN2 ha hN1
 
 end Chapter5
