@@ -446,6 +446,44 @@ lemma IsBounded.finite {n:ℕ} (a: Fin n → ℚ) : ∃ M ≥ 0,  BoundedBy a M 
   . grind
   convert h2; simp
 
+lemma Sequence.finite_isBounded (a:Sequence) (N : ℤ) : ∃ M ≥ 0, ∀ i ≤ N, |a i| ≤ M := by
+  -- OMG why are we using integers...
+  have goal : ∀ n:ℕ, ∃ M ≥ 0, ∀ i, i ≤ a.n₀+n → |a i| ≤ M
+  . intro n
+    induction' n with n IH
+    . simp
+      use |a (a.n₀)|
+      constructor
+      . simp
+      intro i hi
+      rw [le_iff_lt_or_eq] at hi
+      obtain hi | hi := hi
+      . have := a.vanish i hi
+        simp [this]
+      . simp [hi]
+    obtain ⟨ M, hM1, hM2 ⟩ := IH
+    use M + |a.seq (a.n₀ + ↑(n + 1))|
+    have habs : |a.seq (a.n₀ + ↑(n + 1))| ≥ 0
+    . simp
+    constructor
+    . linarith
+    intro i hi
+    by_cases hi2 : i ≤ a.n₀ + ↑n
+    . replace hM2 := hM2 i hi2
+      linarith
+    . have : i = a.n₀ + ↑(n + 1)
+      . omega
+      simp [this, hM1]
+  by_cases haN : N ≥ a.n₀
+  . obtain ⟨ c, hc, hc2 ⟩ := le_iff_exists_nonneg_add.mp haN
+    lift c to ℕ using hc
+    rw [← hc2]
+    exact goal c
+  use 0, (by norm_num)
+  intro i hi
+  simp
+  exact a.vanish i (by omega)
+
 /-- Lemma 5.1.15 (Cauchy sequences are bounded) / Exercise 5.1.1 -/
 lemma Sequence.isBounded_of_isCauchy {a:Sequence} (h: a.IsCauchy) : a.IsBounded := by
   -- Find the point where it is 1 steady.
@@ -456,37 +494,7 @@ lemma Sequence.isBounded_of_isCauchy {a:Sequence} (h: a.IsCauchy) : a.IsBounded 
   rw [Rat.steady_def] at hN
   -- Everything before that point is bounded by M due to finiteness.
   have hbound : ∃ M ≥ 0, ∀ i ≤ N, |a i| ≤ M
-  . -- OMG why are we using integers...
-    have goal : ∀ n:ℕ, ∃ M ≥ 0, ∀ i, i ≤ a.n₀+n → |a i| ≤ M
-    . intro n
-      induction' n with n IH
-      . simp
-        use |a (a.n₀)|
-        constructor
-        . simp
-        intro i hi
-        rw [le_iff_lt_or_eq] at hi
-        obtain hi | hi := hi
-        . have := a.vanish i hi
-          simp [this]
-        . simp [hi]
-      obtain ⟨ M, hM1, hM2 ⟩ := IH
-      use M + |a.seq (a.n₀ + ↑(n + 1))|
-      have habs : |a.seq (a.n₀ + ↑(n + 1))| ≥ 0
-      . simp
-      constructor
-      . linarith
-      intro i hi
-      by_cases hi2 : i ≤ a.n₀ + ↑n
-      . replace hM2 := hM2 i hi2
-        linarith
-      . have : i = a.n₀ + ↑(n + 1)
-        . omega
-        simp [this, hM1]
-    obtain ⟨ c, hc, hc2 ⟩ := le_iff_exists_nonneg_add.mp haN
-    lift c to ℕ using hc
-    rw [← hc2]
-    exact goal c
+  . exact finite_isBounded a N
   obtain ⟨ M, hM, hM2 ⟩ := hbound
   -- Everything after falls in M+1 bound.
   rw [Sequence.isBounded_def]
