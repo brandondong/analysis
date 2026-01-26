@@ -65,21 +65,60 @@ theorem CauchySequence.coe_coe {a:ℕ → ℚ} (ha: (a:Sequence).IsCauchy) : mk'
 
 /-- Proposition 5.3.3 / Exercise 5.3.1 -/
 theorem Sequence.equiv_trans {a b c:ℕ → ℚ} (hab: Equiv a b) (hbc: Equiv b c) :
-  Equiv a c := by sorry
+  Equiv a c := by {
+    rw [Sequence.equiv_iff] at *
+    have (n:ℕ) : a n - c n = (a n - b n) + (b n - c n) := by ring
+    simp only [this]; clear this
+    intro e he
+    obtain ⟨ N1, h1 ⟩ := hab (e/2) (by linarith)
+    obtain ⟨ N2, h2 ⟩ := hbc (e/2) (by linarith)
+    use N1+N2
+    intro n hn
+    replace h1 := h1 n (by omega)
+    replace h2 := h2 n (by omega)
+    have := abs_add (a n - b n) (b n - c n)
+    linarith
+  }
 
 /-- Proposition 5.3.3 / Exercise 5.3.1 -/
 instance CauchySequence.instSetoid : Setoid CauchySequence where
   r := fun a b ↦ Sequence.Equiv a b
   iseqv := {
-     refl := sorry
-     symm := sorry
-     trans := sorry
+     refl := by {
+      intro a
+      simp only [Sequence.equiv_iff]
+      intro e he
+      use 0
+      intro n hn
+      simp
+      linarith
+    }
+     symm := by {
+      intro a b h
+      simp only [Sequence.equiv_iff] at *
+      intro e he
+      obtain ⟨ N, h ⟩ := h e he
+      use N
+      intro n hn
+      rw [abs_sub_comm]
+      exact h n hn
+    }
+     trans := by {
+      intro a b c hab hbc
+      exact Sequence.equiv_trans hab hbc
+    }
   }
 
 theorem CauchySequence.equiv_iff (a b: CauchySequence) : a ≈ b ↔ Sequence.Equiv a b := by rfl
 
 /-- Every constant sequence is Cauchy -/
-theorem Sequence.IsCauchy.const (a:ℚ) : ((fun _:ℕ ↦ a):Sequence).IsCauchy := by sorry
+theorem Sequence.IsCauchy.const (a:ℚ) : ((fun _:ℕ ↦ a):Sequence).IsCauchy := by
+  rw [Sequence.IsCauchy.coe]
+  intro e he
+  use 0
+  intro i hi j hj
+  simp [Section_4_3.dist]
+  linarith
 
 instance CauchySequence.instZero : Zero CauchySequence where
   zero := CauchySequence.mk' (a := fun _: ℕ ↦ 0) (Sequence.IsCauchy.const (0:ℚ))
@@ -174,10 +213,62 @@ theorem Real.LIM_add {a b:ℕ → ℚ} (ha: (a:Sequence).IsCauchy) (hb: (b:Seque
   convert Quotient.liftOn₂_mk _ _ _ _
   rw [dif_pos]
 
+#check Section_4_3.close_mul_mul
+#check Section_4_3.close_mul_mul'
+
 /-- Proposition 5.3.10 (Product of Cauchy sequences is Cauchy) -/
 theorem Sequence.IsCauchy.mul {a b:ℕ → ℚ}  (ha: (a:Sequence).IsCauchy) (hb: (b:Sequence).IsCauchy) :
     (a * b:Sequence).IsCauchy := by
-  sorry
+  obtain ⟨ Ba, hBa, hBa2 ⟩ := Sequence.isBounded_of_isCauchy ha
+  obtain ⟨ Bb, hBb, hBb2 ⟩ := Sequence.isBounded_of_isCauchy hb
+  rw [Sequence.IsCauchy.coe] at *
+  intro e he
+  have hBa : (Ba + 1)⁻¹ > 0
+  . have : (Ba + 1) > 0 := by linarith
+    exact Right.inv_pos.mpr this
+  have hBb : (Bb + 1)⁻¹ > 0
+  . have : (Bb + 1) > 0 := by linarith
+    exact Right.inv_pos.mpr this
+  have he2 : e / 2 > 0 := by linarith
+  obtain ⟨ N, ha ⟩ := ha (e/2 * (Bb+1)⁻¹) (by exact Left.mul_pos he2 hBb)
+  obtain ⟨ M, hb ⟩ := hb (e/2 * (Ba+1)⁻¹) (by exact Left.mul_pos he2 hBa)
+  use N+M
+  intro i hi j hj
+  replace ha := ha i (by omega) j (by omega)
+  replace hb := hb i (by omega) j (by omega)
+  simp
+  unfold Section_4_3.dist at *
+  have := Section_4_3.close_mul_mul' ha hb
+  unfold Rat.Close at this
+  have : e / 2 * (Bb + 1)⁻¹ * |b i| ≤ e / 2
+  . have hne : (Bb + 1) ≠ 0 := by linarith
+    have h1 : (Bb + 1)⁻¹ * |b i| ≤ 1
+    . calc
+        _ ≤ (Bb + 1)⁻¹ * (Bb + 1) := by {
+          have : |b i| ≤ (Bb + 1)
+          . have := hBb2 i
+            simp at this
+            linarith
+          exact mul_le_mul_of_nonneg_left this (by linarith)
+        }
+        _ = _ := by exact Rat.inv_mul_cancel (Bb + 1) hne
+    have goal : e / 2 * ((Bb + 1)⁻¹ * |b i|) ≤ e / 2 * 1 := mul_le_mul_of_nonneg_left h1 (by linarith)
+    linarith
+  have : e / 2 * (Ba + 1)⁻¹ * |a j| ≤ e / 2
+  . have hne : (Ba + 1) ≠ 0 := by linarith
+    have h1 : (Ba + 1)⁻¹ * |a j| ≤ 1
+    . calc
+        _ ≤ (Ba + 1)⁻¹ * (Ba + 1) := by {
+          have : |a j| ≤ (Ba + 1)
+          . have := hBa2 j
+            simp at this
+            linarith
+          exact mul_le_mul_of_nonneg_left this (by linarith)
+        }
+        _ = _ := by exact Rat.inv_mul_cancel (Ba + 1) hne
+    have goal : e / 2 * ((Ba + 1)⁻¹ * |a j|) ≤ e / 2 * 1 := mul_le_mul_of_nonneg_left h1 (by linarith)
+    linarith
+  linarith
 
 /-- Proposition 5.3.10 (Product of equivalent sequences is equivalent) / Exercise 5.3.2 -/
 theorem Sequence.mul_equiv_left {a a':ℕ → ℚ} (b:ℕ → ℚ) (hb : (b:Sequence).IsCauchy) (haa': Equiv a a') :
