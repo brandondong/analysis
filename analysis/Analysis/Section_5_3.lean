@@ -273,7 +273,33 @@ theorem Sequence.IsCauchy.mul {a b:ℕ → ℚ}  (ha: (a:Sequence).IsCauchy) (hb
 /-- Proposition 5.3.10 (Product of equivalent sequences is equivalent) / Exercise 5.3.2 -/
 theorem Sequence.mul_equiv_left {a a':ℕ → ℚ} (b:ℕ → ℚ) (hb : (b:Sequence).IsCauchy) (haa': Equiv a a') :
   Equiv (a * b) (a' * b) := by
-  sorry
+  obtain ⟨ B, hB1, hB2 ⟩ := Sequence.isBounded_of_isCauchy hb
+  rw [Sequence.equiv_iff] at *
+  intro e he
+  have hBne : 0 < (B + 1)⁻¹
+  . have : B+1 > 0 := by linarith
+    exact Right.inv_pos.mpr this
+  obtain ⟨ N, hN ⟩ := haa' (e * (B+1)⁻¹) (by exact Left.mul_pos he hBne)
+  use N
+  intro n hn
+  specialize hN n hn
+  simp
+  have hmul := Section_4_3.close_mul_right (z := (b n)) hN
+  unfold Rat.Close at hmul
+  have : e * ((B + 1)⁻¹ * |b n|) ≤ e * 1
+  . have : ((B + 1)⁻¹ * |b n|) ≤ 1
+    . have hne : (B + 1) ≠ 0 := by linarith
+      calc
+        _ ≤ ((B + 1)⁻¹ * (B + 1)) := by {
+          have : |b n| ≤ (B + 1)
+          . have := hB2 n
+            simp at this
+            linarith
+          exact mul_le_mul_of_nonneg_left this (by linarith)
+        }
+        _ = _ := by exact Rat.inv_mul_cancel _ hne
+    exact mul_le_mul_of_nonneg_left this (by linarith)
+  linarith
 
 /--Proposition 5.3.10 (Product of equivalent sequences is equivalent) / Exercise 5.3.2 -/
 theorem Sequence.mul_equiv_right {b b':ℕ → ℚ} (a:ℕ → ℚ)  (ha : (a:Sequence).IsCauchy)  (hbb': Equiv b b') :
@@ -314,7 +340,24 @@ theorem Real.ratCast_def (q:ℚ) : (q:Real) = LIM (fun _ ↦ q) := by rw [LIM_de
 /-- Exercise 5.3.3 -/
 @[simp]
 theorem Real.ratCast_inj (q r:ℚ) : (q:Real) = (r:Real) ↔ q = r := by
-  sorry
+  constructor <;> intro h
+  . simp only [Real.ratCast_def] at h
+    have hq := Sequence.IsCauchy.const q
+    have hr := Sequence.IsCauchy.const r
+    replace h := (Real.LIM_eq_LIM hq hr).mp h
+    rw [Sequence.equiv_iff] at h
+    -- We know we can make the gap between q and r arbitrarily small.
+    -- Consider contrapositive: q!=r. Then use the gap/2 as epsilon.
+    contrapose! h
+    have hqr : |q - r| > 0
+    . apply abs_pos.mpr
+      contrapose! h
+      linarith
+    use |q-r|/2, (by linarith)
+    intro N
+    use N+1, by omega
+    linarith
+  . simp [h]
 
 instance Real.instOfNat {n:ℕ} : OfNat Real n where
   ofNat := ((n:ℚ):Real)
@@ -329,22 +372,69 @@ instance Real.instIntCast : IntCast Real where
   intCast n := ((n:ℚ):Real)
 
 /-- ratCast distributes over addition -/
-theorem Real.ratCast_add (a b:ℚ) : (a:Real) + (b:Real) = (a+b:ℚ) := by sorry
+theorem Real.ratCast_add (a b:ℚ) : (a:Real) + (b:Real) = (a+b:ℚ) := by
+  simp only [ratCast_def]
+  have ha := Sequence.IsCauchy.const a
+  have hb := Sequence.IsCauchy.const b
+  rw [Real.LIM_add ha hb, Real.LIM_eq_LIM (Sequence.IsCauchy.add ha hb) (Sequence.IsCauchy.const _)]
+  rw [Sequence.equiv_iff]
+  intro e he
+  use 0
+  intro n hn
+  simp
+  linarith
 
 /-- ratCast distributes over multiplication -/
-theorem Real.ratCast_mul (a b:ℚ) : (a:Real) * (b:Real) = (a*b:ℚ) := by sorry
+theorem Real.ratCast_mul (a b:ℚ) : (a:Real) * (b:Real) = (a*b:ℚ) := by
+  simp only [ratCast_def]
+  have ha := Sequence.IsCauchy.const a
+  have hb := Sequence.IsCauchy.const b
+  rw [Real.LIM_mul ha hb, Real.LIM_eq_LIM (Sequence.IsCauchy.mul ha hb) (Sequence.IsCauchy.const _)]
+  rw [Sequence.equiv_iff]
+  intro e he
+  use 0
+  intro n hn
+  simp
+  linarith
 
 noncomputable instance Real.instNeg : Neg Real where
   neg x := ((-1:ℚ):Real) * x
 
-/-- ratCast commutes with negation -/
-theorem Real.neg_ratCast (a:ℚ) : -(a:Real) = (-a:ℚ) := by sorry
+theorem Real.neg_def (a:Real) : -(a:Real) = ((-1:ℚ):Real) * a := by rfl
 
-/-- It may be possible to omit the Cauchy sequence hypothesis here. -/
-theorem Real.neg_LIM (a:ℕ → ℚ) (ha: (a:Sequence).IsCauchy) : -LIM a = LIM (-a) := by sorry
+/-- ratCast commutes with negation -/
+theorem Real.neg_ratCast (a:ℚ) : -(a:Real) = (-a:ℚ) := by
+  rw [Real.neg_def]
+  have := Real.ratCast_mul (-1) a
+  simp [this]
 
 theorem Sequence.IsCauchy.neg (a:ℕ → ℚ) (ha: (a:Sequence).IsCauchy) :
-    ((-a:ℕ → ℚ):Sequence).IsCauchy := by sorry
+    ((-a:ℕ → ℚ):Sequence).IsCauchy := by
+  rw [Sequence.IsCauchy.coe] at *
+  unfold Section_4_3.dist at *
+  intro e he
+  obtain ⟨ N, hN ⟩ := ha e he
+  use N
+  intro i hi j hj
+  simp
+  specialize hN i hi j hj
+  rw [abs_sub_comm] at hN
+  have : -a i + a j = a j - a i := by linarith
+  rwa [this]
+
+/-- It may be possible to omit the Cauchy sequence hypothesis here. -/
+theorem Real.neg_LIM (a:ℕ → ℚ) (ha: (a:Sequence).IsCauchy) : -LIM a = LIM (-a) := by
+  rw [Real.neg_def, Real.ratCast_def]
+  rw [Real.LIM_mul (Sequence.IsCauchy.const _) ha]
+  rw [Real.LIM_eq_LIM]
+  . rw [Sequence.equiv_iff]
+    intro e he
+    use 0
+    intro n hn
+    simp
+    linarith
+  . exact Sequence.IsCauchy.mul (Sequence.IsCauchy.const _) ha
+  . exact Sequence.IsCauchy.neg a ha
 
 /-- Proposition 5.3.11 (laws of algebra) -/
 noncomputable instance Real.addGroup_inst : AddGroup Real :=
