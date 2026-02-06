@@ -83,28 +83,206 @@ theorem Real.isNeg_def (x:Real) :
     IsNeg x ↔ ∃ a:ℕ → ℚ, BoundedAwayNeg a ∧ (a:Sequence).IsCauchy ∧ x = LIM a := by rfl
 
 /-- Proposition 5.4.4 (basic properties of positive reals) / Exercise 5.4.1 -/
-theorem Real.trichotomous (x:Real) : x = 0 ∨ x.IsPos ∨ x.IsNeg := by sorry
+theorem Real.trichotomous (x:Real) : x = 0 ∨ x.IsPos ∨ x.IsNeg := by
+  by_cases h : x = 0
+  . left
+    exact h
+  right
+  -- If x is not zero, then we know there exists c < |a n|...
+  obtain ⟨ a, ha, hab, rfl ⟩ := Real.boundedAwayZero_of_nonzero h; clear h
+  rw [bounded_away_zero_def] at hab
+  obtain ⟨ c, hc, hab ⟩ := hab
+  -- We're going to have to construct a new a' which is equivalent to a.
+  -- We know a is cauchy so we can consider e=c/2 and see the sign at a N.
+  have hac := (Sequence.IsCauchy.coe a).mp ha
+  specialize hac (c/2) (by linarith)
+  obtain ⟨ N, hN ⟩ := hac
+  unfold Section_4_3.dist at hN
+  obtain h | h | h := lt_trichotomy (a N) 0
+  . -- Nothing further in (a n) can change sign.
+    right
+    rw [Real.isNeg_def]
+    use (fun n ↦ if n ≥ N then (a n) else (-c/2))
+    have ha' : ((fun n ↦ if n ≥ N then (a n) else (-c/2)):Sequence).IsCauchy
+    . rw [Sequence.IsCauchy.coe]
+      intro e he
+      rw [Sequence.IsCauchy.coe] at ha
+      specialize ha e he
+      obtain ⟨ M, ha ⟩ := ha
+      use N+M
+      intro j hj k hk
+      have hj2 : j ≥ N := by omega
+      have hk2 : k ≥ N := by omega
+      simp [hj2, hk2]
+      specialize ha j (by omega) k (by omega)
+      exact ha
+    split_ands
+    . rw [boundedAwayNeg_def]
+      use (c/2), (by linarith)
+      intro n
+      by_cases hn : n ≥ N <;> simp [hn]
+      . specialize hN N (by omega) n hn
+        specialize hab N
+        rw [abs_of_neg h] at hab
+        rw [abs_le] at hN
+        linarith
+      . linarith
+    . exact ha'
+    . rw [Real.LIM_eq_LIM ha ha', Sequence.equiv_iff]
+      intro e he
+      use N
+      intro n hn
+      simp [hn]
+      linarith
+  . specialize hab N
+    simp [h] at hab
+    linarith
+  . left
+    rw [Real.isPos_def]
+    use (fun n ↦ if n ≥ N then (a n) else (c/2))
+    have ha' : ((fun n ↦ if n ≥ N then (a n) else (c/2)):Sequence).IsCauchy
+    . rw [Sequence.IsCauchy.coe]
+      intro e he
+      rw [Sequence.IsCauchy.coe] at ha
+      specialize ha e he
+      obtain ⟨ M, ha ⟩ := ha
+      use N+M
+      intro j hj k hk
+      have hj2 : j ≥ N := by omega
+      have hk2 : k ≥ N := by omega
+      simp [hj2, hk2]
+      specialize ha j (by omega) k (by omega)
+      exact ha
+    split_ands
+    . rw [boundedAwayPos_def]
+      use (c/2), (by linarith)
+      intro n
+      by_cases hn : n ≥ N <;> simp [hn]
+      . specialize hN N (by omega) n hn
+        specialize hab N
+        rw [abs_of_pos h] at hab
+        rw [abs_le] at hN
+        linarith
+    . exact ha'
+    . rw [Real.LIM_eq_LIM ha ha', Sequence.equiv_iff]
+      intro e he
+      use N
+      intro n hn
+      simp [hn]
+      linarith
 
 /-- Proposition 5.4.4 (basic properties of positive reals) / Exercise 5.4.1 -/
-theorem Real.not_zero_pos (x:Real) : ¬(x = 0 ∧ x.IsPos) := by sorry
+theorem Real.not_zero_pos (x:Real) : ¬(x = 0 ∧ x.IsPos) := by
+  intro ⟨ h0, h ⟩
+  rw [Real.isPos_def] at h
+  obtain ⟨ a, ha, hac, rfl ⟩ := h
+  rw [boundedAwayPos_def] at ha
+  rw [← Real.LIM.zero, Real.LIM_eq_LIM hac (Sequence.IsCauchy.const _), Sequence.equiv_iff] at h0
+  obtain ⟨ c, hc, ha ⟩ := ha
+  contrapose! h0; clear h0
+  use (c/2), (by linarith)
+  intro N
+  use N, (by omega)
+  specialize ha N
+  simp
+  rw [abs_of_nonneg (by linarith)]
+  linarith
 
 theorem Real.nonzero_of_pos {x:Real} (hx: x.IsPos) : x ≠ 0 := by
   have := not_zero_pos x
   simpa [hx] using this
 
 /-- Proposition 5.4.4 (basic properties of positive reals) / Exercise 5.4.1 -/
-theorem Real.not_zero_neg (x:Real) : ¬(x = 0 ∧ x.IsNeg) := by sorry
+theorem Real.not_zero_neg (x:Real) : ¬(x = 0 ∧ x.IsNeg) := by
+  intro ⟨ h0, h ⟩
+  rw [Real.isNeg_def] at h
+  obtain ⟨ a, ha, hac, rfl ⟩ := h
+  rw [boundedAwayNeg_def] at ha
+  rw [← Real.LIM.zero, Real.LIM_eq_LIM hac (Sequence.IsCauchy.const _), Sequence.equiv_iff] at h0
+  obtain ⟨ c, hc, ha ⟩ := ha
+  contrapose! h0; clear h0
+  use (c/2), (by linarith)
+  intro N
+  use N, (by omega)
+  specialize ha N
+  simp
+  rw [abs_of_neg (by linarith)]
+  linarith
 
 theorem Real.nonzero_of_neg {x:Real} (hx: x.IsNeg) : x ≠ 0 := by
   have := not_zero_neg x
   simpa [hx] using this
 
 /-- Proposition 5.4.4 (basic properties of positive reals) / Exercise 5.4.1 -/
-theorem Real.not_pos_neg (x:Real) : ¬(x.IsPos ∧ x.IsNeg) := by sorry
+theorem Real.not_pos_neg (x:Real) : ¬(x.IsPos ∧ x.IsNeg) := by
+  rw [Real.isPos_def, Real.isNeg_def]
+  intro ⟨ h1, h2 ⟩
+  obtain ⟨ a, ha, hac, rfl ⟩ := h1
+  obtain ⟨ b, hb, hbc, h ⟩ := h2
+  rw [Real.LIM_eq_LIM hac hbc, Sequence.equiv_iff] at h
+  rw [boundedAwayPos_def] at ha
+  rw [boundedAwayNeg_def] at hb
+  obtain ⟨ c, hc, ha ⟩ := ha
+  obtain ⟨ d, hd, hb ⟩ := hb
+  contrapose! h; clear h
+  use c, hc
+  intro N
+  use N, (by omega)
+  specialize ha N
+  specialize hb N
+  rw [abs_of_nonneg (by linarith)]
+  linarith
 
 /-- Proposition 5.4.4 (basic properties of positive reals) / Exercise 5.4.1 -/
 @[simp]
-theorem Real.neg_iff_pos_of_neg (x:Real) : x.IsNeg ↔ (-x).IsPos := by sorry
+theorem Real.neg_iff_pos_of_neg (x:Real) : x.IsNeg ↔ (-x).IsPos := by
+  rw [Real.isPos_def, Real.isNeg_def]
+  constructor <;> intro h
+  . obtain ⟨ a, hab, ha, rfl ⟩ := h
+    use -a
+    split_ands
+    . rw [boundedAwayPos_def]
+      rw [boundedAwayNeg_def] at hab
+      obtain ⟨ c, hc, hac ⟩ := hab
+      use c, hc
+      intro n
+      specialize hac n
+      simp
+      linarith
+    . exact Sequence.IsCauchy.neg a ha
+    . rw [Real.neg_LIM a ha]
+  . obtain ⟨ a, hab, ha, hx ⟩ := h
+    use -a
+    have ha2 :=Sequence.IsCauchy.neg a ha
+    split_ands
+    . rw [boundedAwayNeg_def]
+      rw [boundedAwayPos_def] at hab
+      obtain ⟨ c, hc, hac ⟩ := hab
+      use c, hc
+      intro n
+      specialize hac n
+      simp
+      linarith
+    . exact ha2
+    rw [Real.neg_def] at hx
+    obtain ⟨ b, hb, rfl ⟩ := Real.eq_lim x
+    rw [Real.ratCast_def, Real.LIM_mul (Sequence.IsCauchy.const _) hb] at hx
+    rw [Real.LIM_eq_LIM hb ha2, Sequence.equiv_iff]
+    rw [Real.LIM_eq_LIM (by {
+      apply Sequence.IsCauchy.mul
+      . exact (Sequence.IsCauchy.const _)
+      . exact hb
+    }) ha, Sequence.equiv_iff] at hx
+    intro e he
+    specialize hx e he
+    obtain ⟨ N, hN ⟩ := hx
+    use N
+    intro n hn
+    specialize hN n hn
+    simp at hN
+    simp
+    have : -b n - a n = -(b n + a n) := by linarith
+    rwa [this, abs_neg] at hN
 
 /-- Proposition 5.4.4 (basic properties of positive reals) / Exercise 5.4.1-/
 theorem Real.pos_add {x y:Real} (hx: x.IsPos) (hy: y.IsPos) : (x+y).IsPos := by sorry
