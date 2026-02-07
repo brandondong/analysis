@@ -285,14 +285,82 @@ theorem Real.neg_iff_pos_of_neg (x:Real) : x.IsNeg ↔ (-x).IsPos := by
     rwa [this, abs_neg] at hN
 
 /-- Proposition 5.4.4 (basic properties of positive reals) / Exercise 5.4.1-/
-theorem Real.pos_add {x y:Real} (hx: x.IsPos) (hy: y.IsPos) : (x+y).IsPos := by sorry
+theorem Real.pos_add {x y:Real} (hx: x.IsPos) (hy: y.IsPos) : (x+y).IsPos := by
+  rw [Real.isPos_def] at *
+  obtain ⟨ x, hxb, hx, rfl ⟩ := hx
+  obtain ⟨ y, hyb, hy, rfl ⟩ := hy
+  use (x+y)
+  split_ands
+  . rw [boundedAwayPos_def] at *
+    obtain ⟨ c, hc, hxc ⟩ := hxb
+    obtain ⟨ d, hd, hyd ⟩ := hyb
+    use c, hc
+    intro n
+    specialize hxc n
+    specialize hyd n
+    simp
+    linarith
+  . apply Sequence.IsCauchy.add
+    . exact hx
+    . exact hy
+  . rw [Real.LIM_add hx hy]
 
 /-- Proposition 5.4.4 (basic properties of positive reals) / Exercise 5.4.1 -/
-theorem Real.pos_mul {x y:Real} (hx: x.IsPos) (hy: y.IsPos) : (x*y).IsPos := by sorry
+theorem Real.pos_mul {x y:Real} (hx: x.IsPos) (hy: y.IsPos) : (x*y).IsPos := by
+  rw [Real.isPos_def] at *
+  obtain ⟨ x, hxb, hx, rfl ⟩ := hx
+  obtain ⟨ y, hyb, hy, rfl ⟩ := hy
+  use x*y
+  split_ands
+  . rw [boundedAwayPos_def] at *
+    obtain ⟨ c, hc, hxc ⟩ := hxb
+    obtain ⟨ d, hd, hyd ⟩ := hyb
+    use c*d, (by exact Left.mul_pos hc hd)
+    intro n
+    specialize hxc n
+    specialize hyd n
+    simp
+    have hyn : (y n) ≥ 0 := by linarith
+    calc
+      _ ≤ c * (y n) := by exact (mul_le_mul_iff_of_pos_left hc).mpr hyd
+      _ ≤ _ := by exact mul_le_mul_of_nonneg_right hxc hyn
+  . apply Sequence.IsCauchy.mul
+    . exact hx
+    . exact hy
+  . rw [Real.LIM_mul hx hy]
 
-theorem Real.pos_of_coe (q:ℚ) : (q:Real).IsPos ↔ q > 0 := by sorry
+theorem Real.pos_of_coe (q:ℚ) : (q:Real).IsPos ↔ q > 0 := by
+  constructor <;> intro h
+  . rw [Real.isPos_def] at h
+    obtain ⟨ a, hab, ha, hq ⟩ := h
+    rw [ratCast_def, Real.LIM_eq_LIM (Sequence.IsCauchy.const _) ha, Sequence.equiv_iff] at hq
+    rw [boundedAwayPos_def] at hab
+    obtain ⟨ c, hc, hac ⟩ := hab
+    -- q is arbitrarily close to (a n) and a is >= c.
+    contrapose! hq
+    use (c/2), (by linarith)
+    intro N
+    use N, (by omega)
+    specialize hac N
+    rw [abs_sub_comm, abs_of_nonneg (by linarith)]
+    linarith
+  . rw [Real.isPos_def]
+    use fun _ ↦ q
+    split_ands
+    . rw [boundedAwayPos_def]
+      use q, h
+      simp
+    . exact (Sequence.IsCauchy.const _)
+    . simp [ratCast_def]
 
-theorem Real.neg_of_coe (q:ℚ) : (q:Real).IsNeg ↔ q < 0 := by sorry
+theorem Real.neg_of_coe (q:ℚ) : (q:Real).IsNeg ↔ q < 0 := by
+  rw [Real.neg_iff_pos_of_neg]
+  have : q < 0 ↔ (-q) > 0
+  . simp
+  rw [this]
+  have := Real.pos_of_coe (-q)
+  simp only [Rat.cast_neg] at this
+  exact this
 
 open Classical in
 /-- Need to use classical logic here because isPos and isNeg are not decidable -/
@@ -327,43 +395,91 @@ instance Real.instLE : LE Real where
 theorem Real.lt_iff (x y:Real) : x < y ↔ (x-y).IsNeg := by rfl
 theorem Real.le_iff (x y:Real) : x ≤ y ↔ (x < y) ∨ (x = y) := by rfl
 
-theorem Real.gt_iff (x y:Real) : x > y ↔ (x-y).IsPos := by sorry
-theorem Real.ge_iff (x y:Real) : x ≥ y ↔ (x > y) ∨ (x = y) := by sorry
+theorem Real.gt_iff (x y:Real) : x > y ↔ (x-y).IsPos := by
+  rw [gt_iff_lt, Real.lt_iff]
+  simp
+theorem Real.ge_iff (x y:Real) : x ≥ y ↔ (x > y) ∨ (x = y) := by
+  rw [ge_iff_le, Real.le_iff, gt_iff_lt]
+  tauto
 
-theorem Real.lt_of_coe (q q':ℚ): q < q' ↔ (q:Real) < (q':Real) := by sorry
+theorem Real.lt_of_coe (q q':ℚ): q < q' ↔ (q:Real) < (q':Real) := by
+  rw [Real.lt_iff]
+  rw [Real.ratCast_sub, Real.neg_of_coe]
+  simp
 
 theorem Real.gt_of_coe (q q':ℚ): q > q' ↔ (q:Real) > (q':Real) := Real.lt_of_coe _ _
 
-theorem Real.isPos_iff (x:Real) : x.IsPos ↔ x > 0 := by sorry
-theorem Real.isNeg_iff (x:Real) : x.IsNeg ↔ x < 0 := by sorry
+theorem Real.isPos_iff (x:Real) : x.IsPos ↔ x > 0 := by
+  rw [Real.gt_iff]
+  simp
+theorem Real.isNeg_iff (x:Real) : x.IsNeg ↔ x < 0 := by
+  rw [Real.lt_iff]
+  simp
+
+theorem zero_eq_helper (x y: Real) : x = y ↔ x - y = 0 := by
+  constructor <;> intro h
+  . simp [h]
+  . contrapose! h
+    exact sub_ne_zero_of_ne h
 
 /-- Proposition 5.4.7(a) (order trichotomy) / Exercise 5.4.2 -/
-theorem Real.trichotomous' (x y:Real) : x > y ∨ x < y ∨ x = y := by sorry
+theorem Real.trichotomous' (x y:Real) : x > y ∨ x < y ∨ x = y := by
+  obtain h | h | h := Real.trichotomous (x-y)
+  . right; right
+    rwa [zero_eq_helper]
+  . left
+    rwa [Real.gt_iff]
+  . right; left
+    rwa [Real.lt_iff]
 
 /-- Proposition 5.4.7(a) (order trichotomy) / Exercise 5.4.2 -/
-theorem Real.not_gt_and_lt (x y:Real) : ¬ (x > y ∧ x < y):= by sorry
+theorem Real.not_gt_and_lt (x y:Real) : ¬ (x > y ∧ x < y):= by
+  rw [Real.gt_iff, Real.lt_iff]
+  exact not_pos_neg (x - y)
 
 /-- Proposition 5.4.7(a) (order trichotomy) / Exercise 5.4.2 -/
-theorem Real.not_gt_and_eq (x y:Real) : ¬ (x > y ∧ x = y):= by sorry
+theorem Real.not_gt_and_eq (x y:Real) : ¬ (x > y ∧ x = y):= by
+  rw [Real.gt_iff, zero_eq_helper]
+  have := Real.not_zero_pos (x-y)
+  contrapose! this
+  tauto
 
 /-- Proposition 5.4.7(a) (order trichotomy) / Exercise 5.4.2 -/
-theorem Real.not_lt_and_eq (x y:Real) : ¬ (x < y ∧ x = y):= by sorry
+theorem Real.not_lt_and_eq (x y:Real) : ¬ (x < y ∧ x = y):= by
+  rw [← gt_iff_lt]
+  have := Real.not_gt_and_eq y x
+  tauto
 
 /-- Proposition 5.4.7(b) (order is anti-symmetric) / Exercise 5.4.2 -/
-theorem Real.antisymm (x y:Real) : x < y ↔ y > x := by sorry
+theorem Real.antisymm (x y:Real) : x < y ↔ y > x := by
+  rw [gt_iff_lt]
 
 /-- Proposition 5.4.7(c) (order is transitive) / Exercise 5.4.2 -/
-theorem Real.lt_trans {x y z:Real} (hxy: x < y) (hyz: y < z) : x < z := by sorry
+theorem Real.lt_trans {x y z:Real} (hxy: x < y) (hyz: y < z) : x < z := by
+  rw [← gt_iff_lt, Real.gt_iff] at *
+  have : z - x = (y-x) + (z-y) := by ring
+  rw [this]
+  exact pos_add hxy hyz
 
 /-- Proposition 5.4.7(d) (addition preserves order) / Exercise 5.4.2 -/
-theorem Real.add_lt_add_right {x y:Real} (z:Real) (hxy: x < y) : x + z < y + z := by sorry
+theorem Real.add_lt_add_right {x y:Real} (z:Real) (hxy: x < y) : x + z < y + z := by
+  rw [← gt_iff_lt, Real.gt_iff] at *
+  ring_nf
+  exact hxy
 
 /-- Proposition 5.4.7(e) (positive multiplication preserves order) / Exercise 5.4.2 -/
 theorem Real.mul_lt_mul_right {x y z:Real} (hxy: x < y) (hz: z.IsPos) : x * z < y * z := by
   rw [antisymm, gt_iff] at hxy ⊢; convert pos_mul hxy hz using 1; ring
 
 /-- Proposition 5.4.7(e) (positive multiplication preserves order) / Exercise 5.4.2 -/
-theorem Real.mul_le_mul_left {x y z:Real} (hxy: x ≤ y) (hz: z.IsPos) : z * x ≤ z * y := by sorry
+theorem Real.mul_le_mul_left {x y z:Real} (hxy: x ≤ y) (hz: z.IsPos) : z * x ≤ z * y := by
+  rw [Real.le_iff] at *
+  obtain h | h := hxy
+  . left
+    rw [mul_comm z x, mul_comm z y]
+    exact mul_lt_mul_right h hz
+  . right
+    simp [h]
 
 theorem Real.mul_pos_neg {x y:Real} (hx: x.IsPos) (hy: y.IsNeg) : (x * y).IsNeg := by
   sorry
