@@ -285,14 +285,82 @@ theorem Real.neg_iff_pos_of_neg (x:Real) : x.IsNeg ↔ (-x).IsPos := by
     rwa [this, abs_neg] at hN
 
 /-- Proposition 5.4.4 (basic properties of positive reals) / Exercise 5.4.1-/
-theorem Real.pos_add {x y:Real} (hx: x.IsPos) (hy: y.IsPos) : (x+y).IsPos := by sorry
+theorem Real.pos_add {x y:Real} (hx: x.IsPos) (hy: y.IsPos) : (x+y).IsPos := by
+  rw [Real.isPos_def] at *
+  obtain ⟨ x, hxb, hx, rfl ⟩ := hx
+  obtain ⟨ y, hyb, hy, rfl ⟩ := hy
+  use (x+y)
+  split_ands
+  . rw [boundedAwayPos_def] at *
+    obtain ⟨ c, hc, hxc ⟩ := hxb
+    obtain ⟨ d, hd, hyd ⟩ := hyb
+    use c, hc
+    intro n
+    specialize hxc n
+    specialize hyd n
+    simp
+    linarith
+  . apply Sequence.IsCauchy.add
+    . exact hx
+    . exact hy
+  . rw [Real.LIM_add hx hy]
 
 /-- Proposition 5.4.4 (basic properties of positive reals) / Exercise 5.4.1 -/
-theorem Real.pos_mul {x y:Real} (hx: x.IsPos) (hy: y.IsPos) : (x*y).IsPos := by sorry
+theorem Real.pos_mul {x y:Real} (hx: x.IsPos) (hy: y.IsPos) : (x*y).IsPos := by
+  rw [Real.isPos_def] at *
+  obtain ⟨ x, hxb, hx, rfl ⟩ := hx
+  obtain ⟨ y, hyb, hy, rfl ⟩ := hy
+  use x*y
+  split_ands
+  . rw [boundedAwayPos_def] at *
+    obtain ⟨ c, hc, hxc ⟩ := hxb
+    obtain ⟨ d, hd, hyd ⟩ := hyb
+    use c*d, (by exact Left.mul_pos hc hd)
+    intro n
+    specialize hxc n
+    specialize hyd n
+    simp
+    have hyn : (y n) ≥ 0 := by linarith
+    calc
+      _ ≤ c * (y n) := by exact (mul_le_mul_iff_of_pos_left hc).mpr hyd
+      _ ≤ _ := by exact mul_le_mul_of_nonneg_right hxc hyn
+  . apply Sequence.IsCauchy.mul
+    . exact hx
+    . exact hy
+  . rw [Real.LIM_mul hx hy]
 
-theorem Real.pos_of_coe (q:ℚ) : (q:Real).IsPos ↔ q > 0 := by sorry
+theorem Real.pos_of_coe (q:ℚ) : (q:Real).IsPos ↔ q > 0 := by
+  constructor <;> intro h
+  . rw [Real.isPos_def] at h
+    obtain ⟨ a, hab, ha, hq ⟩ := h
+    rw [ratCast_def, Real.LIM_eq_LIM (Sequence.IsCauchy.const _) ha, Sequence.equiv_iff] at hq
+    rw [boundedAwayPos_def] at hab
+    obtain ⟨ c, hc, hac ⟩ := hab
+    -- q is arbitrarily close to (a n) and a is >= c.
+    contrapose! hq
+    use (c/2), (by linarith)
+    intro N
+    use N, (by omega)
+    specialize hac N
+    rw [abs_sub_comm, abs_of_nonneg (by linarith)]
+    linarith
+  . rw [Real.isPos_def]
+    use fun _ ↦ q
+    split_ands
+    . rw [boundedAwayPos_def]
+      use q, h
+      simp
+    . exact (Sequence.IsCauchy.const _)
+    . simp [ratCast_def]
 
-theorem Real.neg_of_coe (q:ℚ) : (q:Real).IsNeg ↔ q < 0 := by sorry
+theorem Real.neg_of_coe (q:ℚ) : (q:Real).IsNeg ↔ q < 0 := by
+  rw [Real.neg_iff_pos_of_neg]
+  have : q < 0 ↔ (-q) > 0
+  . simp
+  rw [this]
+  have := Real.pos_of_coe (-q)
+  simp only [Rat.cast_neg] at this
+  exact this
 
 open Classical in
 /-- Need to use classical logic here because {name}`IsPos` and {name}`IsNeg` are not decidable -/
@@ -327,46 +395,99 @@ instance Real.instLE : LE Real where
 theorem Real.lt_iff (x y:Real) : x < y ↔ (x-y).IsNeg := by rfl
 theorem Real.le_iff (x y:Real) : x ≤ y ↔ (x < y) ∨ (x = y) := by rfl
 
-theorem Real.gt_iff (x y:Real) : x > y ↔ (x-y).IsPos := by sorry
-theorem Real.ge_iff (x y:Real) : x ≥ y ↔ (x > y) ∨ (x = y) := by sorry
+theorem Real.gt_iff (x y:Real) : x > y ↔ (x-y).IsPos := by
+  rw [gt_iff_lt, Real.lt_iff]
+  simp
+theorem Real.ge_iff (x y:Real) : x ≥ y ↔ (x > y) ∨ (x = y) := by
+  rw [ge_iff_le, Real.le_iff, gt_iff_lt]
+  tauto
 
-theorem Real.lt_of_coe (q q':ℚ): q < q' ↔ (q:Real) < (q':Real) := by sorry
+theorem Real.lt_of_coe (q q':ℚ): q < q' ↔ (q:Real) < (q':Real) := by
+  rw [Real.lt_iff]
+  rw [Real.ratCast_sub, Real.neg_of_coe]
+  simp
 
 theorem Real.gt_of_coe (q q':ℚ): q > q' ↔ (q:Real) > (q':Real) := Real.lt_of_coe _ _
 
-theorem Real.isPos_iff (x:Real) : x.IsPos ↔ x > 0 := by sorry
-theorem Real.isNeg_iff (x:Real) : x.IsNeg ↔ x < 0 := by sorry
+theorem Real.isPos_iff (x:Real) : x.IsPos ↔ x > 0 := by
+  rw [Real.gt_iff]
+  simp
+theorem Real.isNeg_iff (x:Real) : x.IsNeg ↔ x < 0 := by
+  rw [Real.lt_iff]
+  simp
+
+theorem zero_eq_helper (x y: Real) : x = y ↔ x - y = 0 := by
+  constructor <;> intro h
+  . simp [h]
+  . contrapose! h
+    exact sub_ne_zero_of_ne h
 
 /-- Proposition 5.4.7(a) (order trichotomy) / Exercise 5.4.2 -/
-theorem Real.trichotomous' (x y:Real) : x > y ∨ x < y ∨ x = y := by sorry
+theorem Real.trichotomous' (x y:Real) : x > y ∨ x < y ∨ x = y := by
+  obtain h | h | h := Real.trichotomous (x-y)
+  . right; right
+    rwa [zero_eq_helper]
+  . left
+    rwa [Real.gt_iff]
+  . right; left
+    rwa [Real.lt_iff]
 
 /-- Proposition 5.4.7(a) (order trichotomy) / Exercise 5.4.2 -/
-theorem Real.not_gt_and_lt (x y:Real) : ¬ (x > y ∧ x < y):= by sorry
+theorem Real.not_gt_and_lt (x y:Real) : ¬ (x > y ∧ x < y):= by
+  rw [Real.gt_iff, Real.lt_iff]
+  exact not_pos_neg (x - y)
 
 /-- Proposition 5.4.7(a) (order trichotomy) / Exercise 5.4.2 -/
-theorem Real.not_gt_and_eq (x y:Real) : ¬ (x > y ∧ x = y):= by sorry
+theorem Real.not_gt_and_eq (x y:Real) : ¬ (x > y ∧ x = y):= by
+  rw [Real.gt_iff, zero_eq_helper]
+  have := Real.not_zero_pos (x-y)
+  contrapose! this
+  tauto
 
 /-- Proposition 5.4.7(a) (order trichotomy) / Exercise 5.4.2 -/
-theorem Real.not_lt_and_eq (x y:Real) : ¬ (x < y ∧ x = y):= by sorry
+theorem Real.not_lt_and_eq (x y:Real) : ¬ (x < y ∧ x = y):= by
+  rw [← gt_iff_lt]
+  have := Real.not_gt_and_eq y x
+  tauto
 
 /-- Proposition 5.4.7(b) (order is anti-symmetric) / Exercise 5.4.2 -/
-theorem Real.antisymm (x y:Real) : x < y ↔ y > x := by sorry
+theorem Real.antisymm (x y:Real) : x < y ↔ y > x := by
+  rw [gt_iff_lt]
 
 /-- Proposition 5.4.7(c) (order is transitive) / Exercise 5.4.2 -/
-theorem Real.lt_trans {x y z:Real} (hxy: x < y) (hyz: y < z) : x < z := by sorry
+theorem Real.lt_trans {x y z:Real} (hxy: x < y) (hyz: y < z) : x < z := by
+  rw [← gt_iff_lt, Real.gt_iff] at *
+  have : z - x = (y-x) + (z-y) := by ring
+  rw [this]
+  exact pos_add hxy hyz
 
 /-- Proposition 5.4.7(d) (addition preserves order) / Exercise 5.4.2 -/
-theorem Real.add_lt_add_right {x y:Real} (z:Real) (hxy: x < y) : x + z < y + z := by sorry
+theorem Real.add_lt_add_right {x y:Real} (z:Real) (hxy: x < y) : x + z < y + z := by
+  rw [← gt_iff_lt, Real.gt_iff] at *
+  ring_nf
+  exact hxy
 
 /-- Proposition 5.4.7(e) (positive multiplication preserves order) / Exercise 5.4.2 -/
 theorem Real.mul_lt_mul_right {x y z:Real} (hxy: x < y) (hz: z.IsPos) : x * z < y * z := by
   rw [antisymm, gt_iff] at hxy ⊢; convert pos_mul hxy hz using 1; ring
 
 /-- Proposition 5.4.7(e) (positive multiplication preserves order) / Exercise 5.4.2 -/
-theorem Real.mul_le_mul_left {x y z:Real} (hxy: x ≤ y) (hz: z.IsPos) : z * x ≤ z * y := by sorry
+theorem Real.mul_le_mul_left {x y z:Real} (hxy: x ≤ y) (hz: z.IsPos) : z * x ≤ z * y := by
+  rw [Real.le_iff] at *
+  obtain h | h := hxy
+  . left
+    rw [mul_comm z x, mul_comm z y]
+    exact mul_lt_mul_right h hz
+  . right
+    simp [h]
 
 theorem Real.mul_pos_neg {x y:Real} (hx: x.IsPos) (hy: y.IsNeg) : (x * y).IsNeg := by
-  sorry
+  simp
+  simp at hy
+  have := Real.pos_mul hx hy
+  suffices h : x * -y = -(x * y)
+  . rwa [← h]
+  ring
 
 open Classical in
 /--
@@ -374,18 +495,90 @@ open Classical in
   and so classical logic is required to impose decidability.
 -/
 noncomputable instance Real.instLinearOrder : LinearOrder Real where
-  le_refl := sorry
-  le_trans := sorry
-  lt_iff_le_not_ge := sorry
-  le_antisymm := sorry
-  le_total := sorry
+  le_refl := by {
+    intro a
+    rw [Real.le_iff]
+    tauto
+  }
+  le_trans := by {
+    intro a b c hab hbc
+    rw [Real.le_iff] at *
+    obtain hab | rfl := hab
+    . obtain hbc | rfl := hbc
+      . left
+        exact lt_trans hab hbc
+      . tauto
+    . exact hbc
+  }
+  lt_iff_le_not_ge := by {
+    intro a b
+    constructor <;> intro h
+    . constructor
+      . rw [le_iff]
+        tauto
+      . intro h2
+        rw [le_iff] at h2
+        obtain h2 | h2 := h2
+        . have := Real.not_gt_and_lt a b
+          tauto
+        . have := Real.not_lt_and_eq a b
+          tauto
+    . obtain ⟨ h1, h2 ⟩ := h
+      rw [Real.le_iff] at *
+      tauto
+  }
+  le_antisymm := by {
+    intro a b hab hba
+    rw [le_iff] at *
+    obtain hab | hab := hab
+    . obtain hba | hba := hba
+      . have := Real.not_gt_and_lt a b
+        tauto
+      exact hba.symm
+    exact hab
+  }
+  le_total := by {
+    intro a b
+    simp only [le_iff]
+    have := Real.trichotomous' a b
+    tauto
+  }
   toDecidableLE := Classical.decRel _
 
 /--
   (Not from textbook) {name}`LinearOrder`s come with a definition of absolute value {lean (type := "Real → Real")}`(|·|)`.
   Show that it agrees with our earlier definition.
 -/
-theorem Real.abs_eq_abs (x:Real) : |x| = abs x := by sorry
+theorem Real.abs_eq_abs (x:Real) : |x| = abs x := by
+  simp [_root_.abs, max, SemilatticeSup.sup, abs]
+  obtain h | h | h := Real.trichotomous x <;> simp [h]
+  . intro h2
+    rw [Real.le_iff] at h2
+    obtain h2 | h2 := h2
+    . rw [Real.lt_iff] at h2
+      contrapose! h2
+      have : x - -x = x + x := by ring
+      rw [this]
+      have := Real.pos_add h h
+      have h3 := Real.not_pos_neg (x+x)
+      contrapose! h3
+      use this
+    exact h2.symm
+  . have h2 : ¬ x.IsPos
+    . have := Real.not_pos_neg x
+      contrapose! this
+      use this
+    simp [h2]
+    intro h3
+    rw [Real.lt_iff] at h3
+    contrapose! h3
+    simp at h
+    have := Real.pos_add h h
+    have : -x - x = -x + -x := by ring
+    rw [this]; clear this
+    have h3 := Real.not_pos_neg (-x + -x)
+    contrapose! h3
+    use this
 
 /-- Proposition 5.4.8 -/
 theorem Real.inv_of_pos {x:Real} (hx: x.IsPos) : x⁻¹.IsPos := by
@@ -401,7 +594,10 @@ theorem Real.inv_of_pos {x:Real} (hx: x.IsPos) : x⁻¹.IsPos := by
   have trich := trichotomous x⁻¹
   simpa [hinv_non, hnonneg] using trich
 
-theorem Real.div_of_pos {x y:Real} (hx: x.IsPos) (hy: y.IsPos) : (x/y).IsPos := by sorry
+theorem Real.div_of_pos {x y:Real} (hx: x.IsPos) (hy: y.IsPos) : (x/y).IsPos := by
+  rw [Real.div_eq]
+  have hy2 := Real.inv_of_pos hy
+  exact Real.pos_mul hx hy2
 
 theorem Real.inv_of_gt {x y:Real} (hx: x.IsPos) (hy: y.IsPos) (hxy: x > y) : x⁻¹ < y⁻¹ := by
   observe hxnon: x ≠ 0
@@ -415,14 +611,59 @@ theorem Real.inv_of_gt {x y:Real} (hx: x.IsPos) (hy: y.IsPos) (hxy: x > y) : x�
     _ = _ := self_mul_inv hynon
   simp at this
 
+theorem add_le_add_left : ∀ (a b : Real), a ≤ b → ∀ (c : Real), c + a ≤ c + b := by
+  intro a b h c
+  rw [Real.le_iff] at *
+  obtain h | h := h
+  . have := Real.add_lt_add_right c h
+    left
+    rwa [add_comm c a, add_comm c b]
+  . simp [h]
+
+theorem mul_lt_mul_of_pos_left : ∀ (a b c : Real), a < b → 0 < c → c * a < c * b := by
+  intro a b c h hc
+  have : c.IsPos := by exact (Real.isPos_iff c).mpr hc
+  have := Real.mul_lt_mul_right h this
+  rwa [mul_comm c a, mul_comm c b]
+
 /-- (Not from textbook) {name}`Real` has the structure of a strict ordered ring. -/
 instance Real.instIsStrictOrderedRing : IsStrictOrderedRing Real where
-  add_le_add_left := by sorry
-  add_le_add_right := by sorry
-  mul_lt_mul_of_pos_left := by sorry
-  mul_lt_mul_of_pos_right := by sorry
-  le_of_add_le_add_left := by sorry
-  zero_le_one := by sorry
+  add_le_add_left := by {
+    intro a b h c
+    exact add_le_add_left a b h c
+  }
+  add_le_add_right := by {
+    intro a b h c
+    have := add_le_add_left a b h c
+    rwa [add_comm a c, add_comm b c]
+  }
+  mul_lt_mul_of_pos_left := by {
+    intro a b c h hc
+    exact mul_lt_mul_of_pos_left a b c h hc
+  }
+  mul_lt_mul_of_pos_right := by {
+    intro a b c h hc
+    have := mul_lt_mul_of_pos_left a b c h hc
+    rwa [mul_comm a c, mul_comm b c]
+  }
+  le_of_add_le_add_left := by {
+    intro a b c h
+    contrapose! h
+    have := Real.add_lt_add_right a h
+    rwa [add_comm a c, add_comm a b]
+  }
+  zero_le_one := by {
+    rw [le_iff, lt_iff]
+    left
+    simp [Real.isPos_def]
+    use fun _ ↦ 1
+    split_ands
+    . rw [boundedAwayPos_def]
+      use 1, (by linarith)
+      simp
+    . exact Sequence.IsCauchy.const _
+    . exact LIM.one.symm
+  }
 
 /-- Proposition 5.4.9 (The non-negative reals are closed)-/
 theorem Real.LIM_of_nonneg {a: ℕ → ℚ} (ha: ∀ n, a n ≥ 0) (hcauchy: (a:Sequence).IsCauchy) :
@@ -499,10 +740,61 @@ theorem Real.le_mul {ε:Real} (hε: ε.IsPos) (x:Real) : ∃ M:ℕ, M > 0 ∧ M 
   use 1; simp_all [isPos_iff]; linarith
 
 /-- Proposition 5.4.14 / Exercise 5.4.5 -/
-theorem Real.rat_between {x y:Real} (hxy: x < y) : ∃ q:ℚ, x < (q:Real) ∧ (q:Real) < y := by sorry
+theorem Real.rat_between {x y:Real} (hxy: x < y) : ∃ q:ℚ, x < (q:Real) ∧ (q:Real) < y := by
+  -- We can find a rational lower bound of (y-x)/2.
+  -- Then, using cauchy property, convert x/y into sequences and find rational value where
+  -- it changes less than lower bound.
+  sorry
 
 /-- Exercise 5.4.3 -/
-theorem Real.floor_exist (x:Real) : ∃! n:ℤ, (n:Real) ≤ x ∧ x < (n:Real)+1 := by sorry
+theorem Real.floor_exist (x:Real) : ∃! n:ℤ, (n:Real) ≤ x ∧ x < (n:Real)+1 := by
+  apply existsUnique_of_exists_of_unique
+  . -- Consider a N where all subsequent are 1/2 bounded away.
+    obtain ⟨ a, ha, rfl ⟩ := Real.eq_lim x
+    have ha := ha
+    rw [Sequence.IsCauchy.coe] at ha
+    specialize ha (1/2) (by linarith)
+    obtain ⟨ N, hN ⟩ := ha
+    unfold Section_4_3.dist at hN
+    obtain ⟨ fl, hfl ⟩ := exists_floor (a N)
+    -- Then the true value of a is within that bound.
+    -- The possibilities of the integer floor are therefore the floor of a N, a N - 1, or a N + 1.
+    -- If x < floor(a N), then we know it's floor(a N) - 1.
+    obtain h | h := lt_or_ge (LIM a) fl
+    . use (fl-1)
+      constructor
+      . rw [le_iff, lt_iff, Real.neg_iff_pos_of_neg]
+        left
+        simp
+        have : (LIM a - (↑fl - 1)) = (LIM a + 1 - ↑fl) := by ring
+        rw [this]; clear this
+        rw [isPos_def]
+        sorry
+      . simp [h]
+    -- Otherwise if x >= floor(a N) + 1, then it's floor(a N) + 1.
+    obtain h2 | h2 := Or.symm (lt_or_ge (LIM a) (fl + 1))
+    . use (fl+1)
+      constructor
+      . simp [h2]
+      . simp
+        rw [lt_iff, Real.neg_iff_pos_of_neg]
+        have : (-(LIM a - (↑fl + 1 + 1))) = ((↑fl + 2) - LIM a) := by ring
+        rw [this]; clear this
+        rw [isPos_def]
+        sorry
+    -- Otherwise use floor(a N).
+    use fl
+  intro n1 n2 ⟨ hn1l, hn1r ⟩ ⟨ hn2l, hn2r ⟩
+  -- Prove by contradiction.
+  by_contra h
+  -- wlog, consider n1 < n2.
+  wlog hn : n1 < n2
+  . exact this x n2 n1 hn2l hn2r hn1l hn1r (by omega) (by omega)
+  clear h
+  have hn2 : n1+1 ≤ n2 := by omega
+  have hn3 : n1+1 ≤ (n2:Real)
+  . norm_cast
+  linarith
 
 /-- Exercise 5.4.4 -/
 theorem Real.exist_inv_nat_le {x:Real} (hx: x.IsPos) : ∃ N:ℤ, N>0 ∧ (N:Real)⁻¹ < x := by sorry
