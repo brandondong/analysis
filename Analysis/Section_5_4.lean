@@ -694,6 +694,60 @@ theorem Real.LIM_mono {a b:ℕ → ℚ} (ha: (a:Sequence).IsCauchy) (hb: (b:Sequ
   have := LIM_of_nonneg (a := b - a) (by intro n; simp [hmono n]) (Sequence.IsCauchy.sub hb ha)
   rw [←Real.LIM_sub hb ha] at this; linarith
 
+/-- Custom helpers: -/
+abbrev SwapFirst (a:ℕ → ℚ) (N:ℕ) (q:ℚ) : ℕ → ℚ :=
+  fun n ↦ if n ≥ N then a n else q
+
+theorem SwapFirst_cauchy {a:ℕ → ℚ} {N q} (ha: (a:Sequence).IsCauchy) : ((SwapFirst a N q):Sequence).IsCauchy := by
+  unfold SwapFirst
+  rw [Sequence.IsCauchy.coe] at ha ⊢
+  intro e he
+  specialize ha e he
+  obtain ⟨ N', hN' ⟩ := ha
+  use N'+N
+  intro j hj k hk
+  specialize hN' j (by omega) k (by omega)
+  have hj2 : j ≥ N := by omega
+  have hk2 : k ≥ N := by omega
+  simp [hj2, hk2, hN']
+
+theorem SwapFirst_lim_eq {a:ℕ → ℚ} {N q} (ha: (a:Sequence).IsCauchy) : LIM (SwapFirst a N q) = LIM a := by
+  rw [Real.LIM_eq_LIM (by {
+    apply SwapFirst_cauchy
+    exact ha
+  }) ha, Sequence.equiv_iff]
+  intro e he
+  use N
+  intro n hn
+  unfold SwapFirst
+  simp [hn]
+  linarith
+
+theorem SwapFirst_bounded_away_pos {a:ℕ → ℚ} {N q} : (∃ (c:ℚ), c > 0 ∧ (∀ n ≥ N, a n ≥ c) ∧ q ≥ c) → BoundedAwayPos (SwapFirst a N q) := by
+  intro h
+  obtain ⟨ c, hc, hac, hqc ⟩ := h
+  rw [boundedAwayPos_def]
+  use c, hc
+  intro n
+  unfold SwapFirst
+  by_cases hn : n ≥ N <;> simp [hn]
+  . specialize hac n hn
+    exact hac
+  . exact hqc
+
+theorem LIM_eq_fun_eq {a b:ℕ → ℚ} (h: a = b) : LIM a = LIM b := by rw [h]
+
+theorem bounded_away_zero_const {q:ℚ} (hq : q > 0) : BoundedAwayZero fun _ ↦ q := by
+  rw [bounded_away_zero_def]
+  use q, hq
+  intro _
+  simp [le_abs]
+
+theorem Sequence.IsCauchy.const_inv (a : ℚ) : (↑(fun x:ℕ ↦ a)⁻¹:Sequence).IsCauchy := by
+  have : (fun x ↦ a)⁻¹ = (fun x:ℕ ↦ a⁻¹) := by simp [funext_iff]
+  rw [this]
+  exact (Sequence.IsCauchy.const _)
+
 /-- Remark 5.4.11 --/
 theorem Real.LIM_mono_fail :
     ∃ (a b:ℕ → ℚ), (a:Sequence).IsCauchy
@@ -741,10 +795,91 @@ theorem Real.le_mul {ε:Real} (hε: ε.IsPos) (x:Real) : ∃ M:ℕ, M > 0 ∧ M 
 
 /-- Proposition 5.4.14 / Exercise 5.4.5 -/
 theorem Real.rat_between {x y:Real} (hxy: x < y) : ∃ q:ℚ, x < (q:Real) ∧ (q:Real) < y := by
-  -- We can find a rational lower bound of (y-x)/2.
+  -- We can find a rational lower bound, c, of (y-x)/2.
+  have hxy2 : (y-x)/2 > 0 := by linarith
+  rw [← isPos_iff, isPos_def] at hxy2
+  obtain ⟨ a', hab', ha', hxy2 ⟩ := hxy2
+  rw [boundedAwayPos_def] at hab'
+  obtain ⟨ c, hc, hab' ⟩ := hab'
   -- Then, using cauchy property, convert x/y into sequences and find rational value where
-  -- it changes less than lower bound.
-  sorry
+  -- both change less than lower bound.
+  obtain ⟨ a, ha, rfl ⟩ := Real.eq_lim x
+  obtain ⟨ b, hb, rfl ⟩ := Real.eq_lim y
+  have ha := ha
+  rw [Sequence.IsCauchy.coe] at ha
+  unfold Section_4_3.dist at ha
+  specialize ha (c/2) (by linarith)
+  obtain ⟨ Na, hNa ⟩ := ha
+  -- Then use a N + c.
+  use (a Na) + c
+  simp only [← gt_iff_lt, gt_iff, isPos_def]
+  constructor
+  . use SwapFirst (fun n ↦ (a Na + c) - a n) Na (c/2)
+    have hc : ((↑fun n ↦ a Na + c - a n):Sequence).IsCauchy
+    . have : (↑fun n ↦ a Na + c - a n) = (↑fun n ↦ a Na + c) - a := by simp [funext_iff]
+      rw [this]
+      apply Sequence.IsCauchy.sub
+      . exact (Sequence.IsCauchy.const _)
+      . exact ha
+    split_ands
+    . apply SwapFirst_bounded_away_pos
+      use (c/2), (by linarith)
+      constructor
+      . intro n h
+        specialize hNa n h Na (by omega)
+        rw [abs_le] at hNa
+        linarith
+      . linarith
+    . apply SwapFirst_cauchy
+      exact hc
+    . rw [SwapFirst_lim_eq hc, ratCast_def, Real.LIM_sub (Sequence.IsCauchy.const _) ha]
+      apply LIM_eq_fun_eq
+      simp [funext_iff]
+  . have : 2 = LIM (fun n:ℕ ↦ (2:ℚ))
+    . rw [← ratCast_def]
+      rfl
+    have h2 : (↑(fun x:ℕ ↦ (2:ℚ))⁻¹:Sequence).IsCauchy
+    . exact Sequence.IsCauchy.const_inv _
+    have h3 : (↑(b - a):Sequence).IsCauchy
+    . apply Sequence.IsCauchy.sub
+      . exact hb
+      . exact ha
+    rw [Real.LIM_sub hb ha, this, Real.div_eq, Real.inv_def (by {
+      apply bounded_away_zero_const
+      norm_num
+    }) (Sequence.IsCauchy.const _),
+      Real.LIM_mul h3 h2, Real.LIM_eq_LIM (by {
+        apply Sequence.IsCauchy.mul
+        . exact h3
+        . exact h2
+      }) ha', Sequence.equiv_iff] at hxy2
+    clear this
+    specialize hxy2 (c/32) (by linarith)
+    obtain ⟨ Na', hNa' ⟩ := hxy2
+    use SwapFirst (fun n ↦ b n - (a Na + c)) (Na'+Na) c
+    have ha' : (↑fun n ↦ b n - (a Na + c):Sequence).IsCauchy
+    . have : (fun n ↦ b n - (a Na + c)) = b - ↑fun n ↦ (a Na + c)
+      . simp [funext_iff]
+      rw [this]
+      apply Sequence.IsCauchy.sub
+      . exact hb
+      . exact (Sequence.IsCauchy.const _)
+    split_ands
+    . apply SwapFirst_bounded_away_pos
+      use (c/32), (by linarith)
+      constructor
+      . intro n hn
+        specialize hNa n (by linarith) Na (by omega)
+        specialize hNa' n (by linarith)
+        specialize hab' n
+        simp [abs_le] at hNa hNa'
+        linarith
+      . linarith
+    . apply SwapFirst_cauchy
+      exact ha'
+    . rw [SwapFirst_lim_eq ha', ratCast_def, Real.LIM_sub hb (Sequence.IsCauchy.const _)]
+      apply LIM_eq_fun_eq
+      simp [funext_iff]
 
 /-- Exercise 5.4.3 -/
 theorem Real.floor_exist (x:Real) : ∃! n:ℤ, (n:Real) ≤ x ∧ x < (n:Real)+1 := by
@@ -769,7 +904,45 @@ theorem Real.floor_exist (x:Real) : ∃! n:ℤ, (n:Real) ≤ x ∧ x < (n:Real)+
         have : (LIM a - (↑fl - 1)) = (LIM a + 1 - ↑fl) := by ring
         rw [this]; clear this
         rw [isPos_def]
-        sorry
+        set a' := SwapFirst (fun n ↦ ((a n) + 1 - fl)) N (1/2)
+        use a'
+        have ha'2 : (↑fun n ↦ a n + 1 - ↑fl:Sequence).IsCauchy
+        . have : (↑fun n ↦ a n + 1 - ↑fl) = a + (fun n ↦ (1:ℚ) - ↑fl)
+          . simp [funext_iff]
+            intro n
+            ring
+          rw [this]
+          apply Sequence.IsCauchy.add
+          . exact ha
+          . exact (Sequence.IsCauchy.const _)
+        have ha' : (a':Sequence).IsCauchy
+        . unfold a'
+          apply SwapFirst_cauchy
+          exact ha'2
+        split_ands
+        . unfold a'
+          apply SwapFirst_bounded_away_pos
+          use 1/2, (by linarith)
+          constructor
+          . intro n h
+            replace hfl : fl ≤ a N
+            . specialize hfl fl
+              simp at hfl
+              exact hfl
+            specialize hN n h N (by omega)
+            rw [abs_le] at hN
+            linarith
+          . linarith
+        . exact ha'
+        . unfold a'
+          rw [SwapFirst_lim_eq ha'2, ← LIM.one, Real.LIM_add ha (Sequence.IsCauchy.const _), instIntCast_def]
+          have temp : ((a + fun (x:ℕ) ↦ (1:ℚ)):Sequence).IsCauchy
+          . apply Sequence.IsCauchy.add
+            . exact ha
+            . exact (Sequence.IsCauchy.const _)
+          rw [Real.LIM_sub temp (Sequence.IsCauchy.const _)]
+          apply LIM_eq_fun_eq
+          simp [funext_iff]
       . simp [h]
     -- Otherwise if x >= floor(a N) + 1, then it's floor(a N) + 1.
     obtain h2 | h2 := Or.symm (lt_or_ge (LIM a) (fl + 1))
@@ -781,7 +954,62 @@ theorem Real.floor_exist (x:Real) : ∃! n:ℤ, (n:Real) ≤ x ∧ x < (n:Real)+
         have : (-(LIM a - (↑fl + 1 + 1))) = ((↑fl + 2) - LIM a) := by ring
         rw [this]; clear this
         rw [isPos_def]
-        sorry
+        set a' := fun n ↦ if n ≥ N then (fl + 2 - (a n)) else (fl + 2 - (a N + 1/2))
+        use a'
+        have ha' : (a':Sequence).IsCauchy
+        . rw [Sequence.IsCauchy.coe] at ha ⊢
+          intro e he
+          specialize ha e he
+          obtain ⟨ N2, hN2 ⟩ := ha
+          use (N+N2)
+          intro j hj k hk
+          specialize hN2 j (by omega) k (by omega)
+          have hj : N ≤ j := by omega
+          have hk : N ≤ k := by omega
+          simp [a', hj, hk, Section_4_3.dist]
+          unfold Section_4_3.dist at hN2
+          rwa [abs_sub_comm] at hN2
+        split_ands
+        . rw [boundedAwayPos_def]
+          use fl + 2 - (a N + 1/2), (by {
+            have : fl + 1 > a N
+            . specialize hfl (fl+1)
+              have : ¬ fl + 1 ≤ fl := by linarith
+              simp [this] at hfl
+              exact hfl
+            linarith
+          })
+          intro n
+          unfold a'
+          by_cases h : n ≥ N <;> simp [h]
+          . have goal : a n ≤ a N + 1/2
+            . specialize hN n h N (by omega)
+              rw [abs_le] at hN
+              linarith
+            linarith
+        . exact ha'
+        . have : 2 = LIM (fun _ ↦ (2:ℚ))
+          . rw [←ratCast_def]
+            rfl
+          rw [instIntCast_def, this, Real.LIM_add (Sequence.IsCauchy.const _) (Sequence.IsCauchy.const _)]; clear this
+          have : ((fun x:ℕ ↦ (fl:ℚ)) + fun x ↦ (2:ℚ)) = ((fun x ↦ (fl:ℚ) + (2:ℚ)))
+          . simp [funext_iff]
+          rw [this]; clear this
+          rw [Real.LIM_sub (Sequence.IsCauchy.const _) ha]
+          have : ((fun x ↦ ↑fl + (2:ℚ)) - a) = ((fun x ↦ ↑fl + 2 - (a x)))
+          . simp [funext_iff]
+          rw [this]
+          rw [Real.LIM_eq_LIM (by {
+            rw [← this]
+            apply Sequence.IsCauchy.sub
+            . exact (Sequence.IsCauchy.const _)
+            . exact ha
+          }) ha', Sequence.equiv_iff]
+          intro e he
+          use (N)
+          intro n hn
+          simp [a', hn]
+          linarith
     -- Otherwise use floor(a N).
     use fl
   intro n1 n2 ⟨ hn1l, hn1r ⟩ ⟨ hn2l, hn2r ⟩
@@ -797,74 +1025,333 @@ theorem Real.floor_exist (x:Real) : ∃! n:ℤ, (n:Real) ≤ x ∧ x < (n:Real)+
   linarith
 
 /-- Exercise 5.4.4 -/
-theorem Real.exist_inv_nat_le {x:Real} (hx: x.IsPos) : ∃ N:ℤ, N>0 ∧ (N:Real)⁻¹ < x := by sorry
+theorem Real.exist_inv_nat_le {x:Real} (hx: x.IsPos) : ∃ N:ℤ, N>0 ∧ (N:Real)⁻¹ < x := by
+  -- There exists some c where x = a n > c.
+  rw [Real.isPos_def] at hx
+  obtain ⟨ a, hab, ha, rfl ⟩ := hx
+  rw [boundedAwayPos_def] at hab
+  obtain ⟨ c, hc, hab ⟩ := hab
+  -- Consider N > 1/c. Then c > 1/N.
+  obtain ⟨ N, hN ⟩ := exists_nat_gt (1/c)
+  have hc2 : 1/c > 0 := by exact one_div_pos.mpr hc
+  have hNq : (N:ℚ) > 0 := by linarith
+  use N, (by {
+    simp at hNq ⊢
+    exact hNq
+  })
+  rw [← gt_iff_lt, gt_iff, Real.isPos_def]
+  use fun n ↦ (a n) - 1/N
+  have ha' : ((fun n ↦ a n - 1 / ↑N):Sequence).IsCauchy
+  . have : (fun n:ℕ ↦ a n - 1 / ↑N) = a - fun n:ℕ ↦ 1 / (N:ℚ)
+    . simp [funext_iff]
+    rw [this]; clear this
+    apply Sequence.IsCauchy.sub
+    . exact ha
+    . exact (Sequence.IsCauchy.const _)
+  split_ands
+  . rw [boundedAwayPos_def]
+    use c - 1/N, (by {
+      have : c > 1/N := by exact (one_div_lt hc hNq).mp hN
+      linarith
+    })
+    intro n
+    specialize hab n
+    linarith
+  . exact ha'
+  . simp
+    rw [instNatCast_def, Real.inv_def (by {
+      rw [bounded_away_zero_def]
+      use N, hNq
+      intro _
+      simp
+    }) (Sequence.IsCauchy.const _)]
+    have : (fun x:ℕ ↦ (N:ℚ))⁻¹ = fun x ↦ (N:ℚ)⁻¹
+    . simp [funext_iff]
+    rw [this]; clear this
+    rw [Real.LIM_sub ha (Sequence.IsCauchy.const _)]
+    suffices h : (a - fun x:ℕ ↦ (N:ℚ)⁻¹) = fun n ↦ a n - (↑N)⁻¹
+    . rw [h]
+    simp [funext_iff]
 
 /-- Exercise 5.4.6 -/
-theorem Real.dist_lt_iff (ε x y:Real) : |x-y| < ε ↔ y-ε < x ∧ x < y+ε := by sorry
+theorem Real.dist_lt_iff (ε x y:Real) : |x-y| < ε ↔ y-ε < x ∧ x < y+ε := by
+  rw [Real.abs_eq_abs]
+  unfold Real.abs
+  constructor <;> intro h
+  . by_cases hpos : (x-y).IsPos <;> simp [hpos] at h
+    . constructor
+      . rw [isPos_iff] at hpos
+        linarith
+      . linarith
+    . by_cases hneg : (x-y).IsNeg <;> simp [hneg] at h
+      . constructor
+        . linarith
+        . rw [isNeg_iff] at hneg
+          linarith
+      . have : x = y
+        . have := Real.trichotomous (x-y)
+          simp [hpos, hneg] at this
+          linarith
+        simp [this, h]
+  . obtain ⟨ h1, h2 ⟩ := h
+    by_cases hpos : (x-y).IsPos <;> simp [hpos]
+    . linarith
+    . by_cases hneg : (x-y).IsNeg <;> simp [hneg]
+      . linarith
+      . have : x = y
+        . have := Real.trichotomous (x-y)
+          simp [hpos, hneg] at this
+          linarith
+        linarith
 
 /-- Exercise 5.4.6 -/
-theorem Real.dist_le_iff (ε x y:Real) : |x-y| ≤ ε ↔ y-ε ≤ x ∧ x ≤ y+ε := by sorry
+theorem Real.dist_le_iff (ε x y:Real) : |x-y| ≤ ε ↔ y-ε ≤ x ∧ x ≤ y+ε := by
+  rw [Real.abs_eq_abs]
+  unfold Real.abs
+  constructor <;> intro h
+  . by_cases hpos : (x-y).IsPos <;> simp [hpos] at h
+    . constructor
+      . rw [isPos_iff] at hpos
+        linarith
+      . linarith
+    . by_cases hneg : (x-y).IsNeg <;> simp [hneg] at h
+      . constructor
+        . linarith
+        . rw [isNeg_iff] at hneg
+          linarith
+      . have : x = y
+        . have := Real.trichotomous (x-y)
+          simp [hpos, hneg] at this
+          linarith
+        simp [this, h]
+  . obtain ⟨ h1, h2 ⟩ := h
+    by_cases hpos : (x-y).IsPos <;> simp [hpos]
+    . linarith
+    . by_cases hneg : (x-y).IsNeg <;> simp [hneg]
+      . linarith
+      . have : x = y
+        . have := Real.trichotomous (x-y)
+          simp [hpos, hneg] at this
+          linarith
+        linarith
 
 /-- Exercise 5.4.7 -/
-theorem Real.le_add_eps_iff (x y:Real) : (∀ ε > 0, x ≤ y+ε) ↔ x ≤ y := by sorry
+theorem Real.le_add_eps_iff (x y:Real) : (∀ ε > 0, x ≤ y+ε) ↔ x ≤ y := by
+  constructor <;> intro h
+  . contrapose! h
+    use (x-y)/2, (by linarith)
+    linarith
+  . intro e he
+    linarith
 
 /-- Exercise 5.4.7 -/
-theorem Real.dist_le_eps_iff (x y:Real) : (∀ ε > 0, |x-y| ≤ ε) ↔ x = y := by sorry
+theorem Real.dist_le_eps_iff (x y:Real) : (∀ ε > 0, |x-y| ≤ ε) ↔ x = y := by
+  constructor <;> intro h
+  . contrapose! h
+    obtain h2 | h2 | h2 := lt_trichotomy x y
+    . use (y-x)/2, (by linarith)
+      rw [_root_.abs_of_neg (by linarith)]
+      linarith
+    . simp [h2] at h
+    . use (x-y)/2, (by linarith)
+      rw [_root_.abs_of_nonneg (by linarith)]
+      linarith
+  . intro e he
+    simp [h]
+    linarith
 
 /-- Exercise 5.4.8 -/
 theorem Real.LIM_of_le {x:Real} {a:ℕ → ℚ} (hcauchy: (a:Sequence).IsCauchy) (h: ∀ n, a n ≤ x) :
-    LIM a ≤ x := by sorry
+    LIM a ≤ x := by
+  obtain ⟨ b, hb, rfl ⟩ := Real.eq_lim x
+  -- Assume to the contrary that a > b.
+  contrapose! h
+  -- Then there exists c such that a' = a - b > c.
+  rw [← gt_iff_lt, gt_iff, Real.LIM_sub hcauchy hb, Real.isPos_def] at h
+  obtain ⟨ a', ha'b, ha', h ⟩ := h
+  rw [boundedAwayPos_def] at ha'b
+  obtain ⟨ c, hc, ha'b ⟩ := ha'b
+  -- Since a' is equivalent to a - b, find some N where difference is < c/2.
+  -- Also some N2 where b changes less than c/2.
+  rw [Real.LIM_eq_LIM (by {
+    apply Sequence.IsCauchy.sub
+    . exact hcauchy
+    . exact hb
+  }) ha', Sequence.equiv_iff] at h
+  specialize h (c/32) (by linarith)
+  obtain ⟨ N, hN ⟩ := h
+  rw [Sequence.IsCauchy.coe] at hcauchy
+  specialize hcauchy (c/32) (by linarith)
+  obtain ⟨ N2, hN2 ⟩ := hcauchy
+  use N+N2
+  rw [← gt_iff_lt, gt_iff, Real.isPos_def]
+  use SwapFirst (fun n ↦ a (N+N2) - b n) (N+N2) c
+  have hc : ((↑fun n ↦ a (N + N2) - b n):Sequence).IsCauchy
+  . have : (↑fun n ↦ a (N + N2) - b n) = (↑fun _ ↦ a (N + N2)) - b
+    . simp [funext_iff]
+    rw [this]
+    apply Sequence.IsCauchy.sub
+    . exact (Sequence.IsCauchy.const _)
+    . exact hb
+  split_ands
+  . apply SwapFirst_bounded_away_pos
+    use (c/32), (by linarith)
+    constructor
+    . intro n hn
+      -- a' is positive and so a n - b n which is arbitrarily close is also positive.
+      -- a n is arbitrarily close to a N and so the goal holds.
+      specialize hN n (by omega)
+      specialize ha'b n
+      unfold Section_4_3.dist at hN2
+      specialize hN2 n (by omega) (N+N2) (by omega)
+      simp [abs_le] at hN2 hN
+      linarith
+    . linarith
+  . apply SwapFirst_cauchy
+    exact hc
+  . rw [SwapFirst_lim_eq hc, ratCast_def, Real.LIM_sub (Sequence.IsCauchy.const _) hb]
+    apply LIM_eq_fun_eq
+    simp [funext_iff]
 
 /-- Exercise 5.4.8 -/
 theorem Real.LIM_of_ge {x:Real} {a:ℕ → ℚ} (hcauchy: (a:Sequence).IsCauchy) (h: ∀ n, a n ≥ x) :
-    LIM a ≥ x := by sorry
+    LIM a ≥ x := by
+  set b := -a
+  have hb : (b:Sequence).IsCauchy
+  . unfold b
+    apply Sequence.IsCauchy.neg
+    exact hcauchy
+  replace h : ∀ n, b n ≤ -x
+  . intro n
+    specialize h n
+    unfold b
+    contrapose! h
+    rw [lt_iff] at h ⊢
+    suffices h : (-x - ↑((-a) n)) = (↑(a n) - x)
+    . rwa [← h]
+    simp
+    ring
+  have := Real.LIM_of_le hb h
+  contrapose! this
+  unfold b
+  rw [lt_iff] at this ⊢
+  suffices h : -x - LIM (-a) = LIM a - x
+  . rwa [h]
+  rw [← Real.neg_LIM _ hcauchy]
+  ring
 
 theorem Real.max_eq (x y:Real) : max x y = if x ≥ y then x else y := max_def' x y
 
 theorem Real.min_eq (x y:Real) : min x y = if x ≤ y then x else y := rfl
 
 /-- Exercise 5.4.9 -/
-theorem Real.neg_max (x y:Real) : max x y = - min (-x) (-y) := by sorry
+theorem Real.neg_max (x y:Real) : max x y = - min (-x) (-y) := by
+  rw [max_eq, min_eq]
+  by_cases h : x ≥ y <;> simp [h]
 
 /-- Exercise 5.4.9 -/
-theorem Real.neg_min (x y:Real) : min x y = - max (-x) (-y) := by sorry
+theorem Real.neg_min (x y:Real) : min x y = - max (-x) (-y) := by
+  rw [max_eq, min_eq]
+  by_cases h : x ≤ y <;> simp [h]
 
 /-- Exercise 5.4.9 -/
-theorem Real.max_comm (x y:Real) : max x y = max y x := by sorry
+theorem Real.max_comm (x y:Real) : max x y = max y x := by
+  simp only [max_eq]
+  by_cases h : x ≥ y <;> simp [h]
+  . intro h2
+    linarith
+  . intro h2
+    linarith
 
 /-- Exercise 5.4.9 -/
-theorem Real.max_self (x:Real) : max x x = x := by sorry
+theorem Real.max_self (x:Real) : max x x = x := by
+  simp
 
 /-- Exercise 5.4.9 -/
-theorem Real.max_add (x y z:Real) : max (x + z) (y + z) = max x y + z := by sorry
+theorem Real.max_add (x y z:Real) : max (x + z) (y + z) = max x y + z := by
+  simp only [max_eq]
+  by_cases h : x ≥ y <;> simp [h]
 
 /-- Exercise 5.4.9 -/
 theorem Real.max_mul (x y :Real) {z:Real} (hz: z.IsPos) : max (x * z) (y * z) = max x y * z := by
-  sorry
+  simp only [max_eq]
+  rw [isPos_iff] at hz
+  by_cases h : x ≥ y <;> simp [h]
+  . intro h2
+    contrapose! h2
+    have hz2 : z ≥ 0 := by linarith
+    exact mul_le_mul_of_nonneg_right h hz2
+  . intro h2
+    simp at h
+    contrapose! h2
+    exact (mul_lt_mul_iff_of_pos_right hz).mpr h
 /- Additional exercise: What happens if z is negative? -/
 
 /-- Exercise 5.4.9 -/
-theorem Real.min_comm (x y:Real) : min x y = min y x := by sorry
+theorem Real.min_comm (x y:Real) : min x y = min y x := by
+  simp only [min_eq]
+  by_cases h : x ≤ y <;> simp [h]
+  . intro h2
+    linarith
+  . intro h2
+    linarith
 
 /-- Exercise 5.4.9 -/
-theorem Real.min_self (x:Real) : min x x = x := by sorry
+theorem Real.min_self (x:Real) : min x x = x := by
+  simp
 
 /-- Exercise 5.4.9 -/
-theorem Real.min_add (x y z:Real) : min (x + z) (y + z) = min x y + z := by sorry
+theorem Real.min_add (x y z:Real) : min (x + z) (y + z) = min x y + z := by
+  simp only [min_eq]
+  by_cases h : x ≤ y <;> simp [h]
 
 /-- Exercise 5.4.9 -/
 theorem Real.min_mul (x y :Real) {z:Real} (hz: z.IsPos) : min (x * z) (y * z) = min x y * z := by
-  sorry
+  simp only [min_eq]
+  rw [isPos_iff] at hz
+  have hz2 : z ≥ 0 := by linarith
+  by_cases h : x ≤ y <;> simp [h]
+  . intro h2
+    contrapose! h2
+    exact mul_le_mul_of_nonneg_right h hz2
+  . intro h2
+    simp at h
+    contrapose! h2
+    exact (mul_lt_mul_iff_of_pos_right hz).mpr h
 
 /-- Exercise 5.4.9 -/
-theorem Real.inv_max {x y :Real} (hx:x.IsPos) (hy:y.IsPos) : (max x y)⁻¹ = min x⁻¹ y⁻¹ := by sorry
+theorem Real.inv_max {x y :Real} (hx:x.IsPos) (hy:y.IsPos) : (max x y)⁻¹ = min x⁻¹ y⁻¹ := by
+  rw [max_eq, min_eq]
+  rw [isPos_iff] at hx hy
+  by_cases h : x ≥ y <;> simp [h]
+  . intro h2
+    contrapose! h2
+    exact inv_anti₀ hy h
+  . intro h2
+    simp at h
+    contrapose! h2
+    exact (inv_lt_inv₀ hy hx).mpr h
 
 /-- Exercise 5.4.9 -/
-theorem Real.inv_min {x y :Real} (hx:x.IsPos) (hy:y.IsPos) : (min x y)⁻¹ = max x⁻¹ y⁻¹ := by sorry
+theorem Real.inv_min {x y :Real} (hx:x.IsPos) (hy:y.IsPos) : (min x y)⁻¹ = max x⁻¹ y⁻¹ := by
+  rw [max_eq, min_eq]
+  rw [isPos_iff] at hx hy
+  by_cases h : x ≤ y <;> simp [h]
+  . intro h2
+    contrapose! h2
+    exact inv_anti₀ hx h
+  . intro h2
+    contrapose! h2
+    simp at h
+    exact (inv_lt_inv₀ hx hy).mpr h
 
 /-- Not from textbook: the rationals map as an ordered ring homomorphism into the reals. -/
 abbrev Real.ratCast_ordered_hom : ℚ →+*o Real where
   toRingHom := ratCast_hom
-  monotone' := by sorry
+  monotone' := by {
+    unfold Monotone
+    intro a b h
+    simp [h]
+  }
 
 end Chapter5
