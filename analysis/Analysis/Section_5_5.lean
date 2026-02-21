@@ -39,19 +39,43 @@ theorem Real.Icc_def (x y:Real) : .Icc x y = { z | x ≤ z ∧ z ≤ y } := rfl
 theorem Real.mem_Icc (x y z:Real) : z ∈ Set.Icc x y ↔ x ≤ z ∧ z ≤ y := by simp [Real.Icc_def]
 
 /-- Example 5.5.2 -/
-example (M: Real) : M ∈ upperBounds (.Icc 0 1) ↔ M ≥ 1 := by sorry
+example (M: Real) : M ∈ upperBounds (.Icc 0 1) ↔ M ≥ 1 := by
+  rw [Real.upperBound_def]
+  simp_rw [Real.mem_Icc]
+  constructor <;> intro h
+  . specialize h 1 (by norm_num)
+    exact h
+  . intro x hx
+    linarith
 
 /-- API for Example 5.5.3 -/
 theorem Real.Ioi_def (x:Real) : .Ioi x = { z | z > x } := rfl
 
 /-- Example 5.5.3 -/
-example : ¬ ∃ M : Real, M ∈ upperBounds (.Ioi 0) := by sorry
+example : ¬ ∃ M : Real, M ∈ upperBounds (.Ioi 0) := by
+  simp_rw [Real.upperBound_def, Real.Ioi_def]
+  push_neg
+  intro M
+  use |M|+1
+  constructor
+  . simp
+    have := abs_nonneg M
+    linarith
+  . have : |M| ≥ M := by exact le_abs_self M
+    linarith
 
 /-- Example 5.5.4 -/
-example : ∀ M, M ∈ upperBounds (∅ : Set Real) := by sorry
+example : ∀ M, M ∈ upperBounds (∅ : Set Real) := by
+  intro M
+  rw [Real.upperBound_def]
+  simp
 
 theorem Real.upperBound_upper {M M': Real} (h: M ≤ M') {E: Set Real} (hb: M ∈ upperBounds E) :
-    M' ∈ upperBounds E := by sorry
+    M' ∈ upperBounds E := by
+  rw [Real.upperBound_def] at hb ⊢
+  intro x hx
+  specialize hb x hx
+  linarith
 
 /-- Definition 5.5.5 (least upper bound).  Here we use the `isLUB` predicate defined in Mathlib. -/
 theorem Real.isLUB_def (E: Set Real) (M: Real) :
@@ -61,10 +85,25 @@ theorem Real.isGLB_def (E: Set Real) (M: Real) :
     IsGLB E M ↔ M ∈ lowerBounds E ∧ ∀ M' ∈ lowerBounds E, M' ≤ M := by rfl
 
 /-- Example 5.5.6 -/
-example : IsLUB (.Icc 0 1) (1 : Real) := by sorry
+example : IsLUB (.Icc 0 1) (1 : Real) := by
+  rw [Real.isLUB_def]
+  constructor
+  . simp [Real.upperBound_def]
+  simp_rw [Real.upperBound_def]
+  intro M
+  intro h
+  specialize h 1 (by simp)
+  exact h
 
 /-- Example 5.5.7 -/
-example : ¬∃ M, IsLUB (∅: Set Real) M := by sorry
+example : ¬∃ M, IsLUB (∅: Set Real) M := by
+  simp_rw [Real.isLUB_def]
+  push_neg
+  intro M hM
+  use M-1
+  constructor
+  . simp
+  . linarith
 
 /-- Proposition 5.5.8 (Uniqueness of least upper bound)-/
 theorem Real.LUB_unique {E: Set Real} {M M': Real} (h1: IsLUB E M) (h2: IsLUB E M') : M = M' := by grind [Real.isLUB_def]
@@ -92,18 +131,174 @@ theorem Real.upperBound_discrete_unique {E: Set Real} {n:ℕ} {m m':ℤ}
 
 /-- Lemmas that can be helpful for proving 5.5.4 -/
 theorem Sequence.IsCauchy.abs {a:ℕ → ℚ} (ha: (a:Sequence).IsCauchy):
-  ((|a| : ℕ → ℚ) : Sequence).IsCauchy := by sorry
+  ((|a| : ℕ → ℚ) : Sequence).IsCauchy := by
+  rw [Sequence.IsCauchy.coe] at *
+  unfold Section_4_3.dist at *
+  -- If a j and a k are the same positivity, then absolute value does nothing.
+  -- Otherwise, they get even closer.
+  intro e he
+  specialize ha e he
+  obtain ⟨ N, hN ⟩ := ha
+  use N
+  intro j hj k hk
+  specialize hN j hj k hk
+  rw [abs_le] at hN ⊢
+  simp
+  obtain h1 | h1 := lt_or_ge (a k) 0
+  . rw [abs_of_neg h1]
+    obtain h2 | h2 := lt_or_ge (a j) 0
+    . rw [abs_of_neg h2]
+      constructor <;> linarith
+    . rw [abs_of_nonneg h2]
+      constructor <;> linarith
+  . rw [abs_of_nonneg h1]
+    obtain h2 | h2 := lt_or_ge (a j) 0
+    . rw [abs_of_neg h2]
+      constructor <;> linarith
+    . rw [abs_of_nonneg h2]
+      constructor <;> linarith
 
 theorem Real.LIM.abs_eq {a b:ℕ → ℚ} (ha: (a: Sequence).IsCauchy)
-    (hb: (b: Sequence).IsCauchy) (h: LIM a = LIM b): LIM |a| = LIM |b| := by sorry
+    (hb: (b: Sequence).IsCauchy) (h: LIM a = LIM b): LIM |a| = LIM |b| := by
+  rw [Real.LIM_eq_LIM ha hb, Sequence.equiv_iff] at h
+  have ha' := Sequence.IsCauchy.abs ha
+  have hb' := Sequence.IsCauchy.abs hb
+  rw [Real.LIM_eq_LIM ha' hb', Sequence.equiv_iff]
+  -- Same as above...
+  intro e he
+  specialize h e he
+  obtain ⟨ N, hN ⟩ := h
+  use N
+  intro n hn
+  specialize hN n hn
+  rw [abs_le] at hN ⊢
+  simp
+  obtain h1 | h1 := lt_or_ge (a n) 0
+  . rw [_root_.abs_of_neg h1]
+    obtain h2 | h2 := lt_or_ge (b n) 0
+    . rw [_root_.abs_of_neg h2]
+      constructor <;> linarith
+    . rw [_root_.abs_of_nonneg h2]
+      constructor <;> linarith
+  . rw [_root_.abs_of_nonneg h1]
+    obtain h2 | h2 := lt_or_ge (b n) 0
+    . rw [_root_.abs_of_neg h2]
+      constructor <;> linarith
+    . rw [_root_.abs_of_nonneg h2]
+      constructor <;> linarith
 
 theorem Real.LIM.abs_eq_pos {a: ℕ → ℚ} (h: LIM a > 0) (ha: (a:Sequence).IsCauchy):
-    LIM a = LIM |a| := by sorry
+    LIM a = LIM |a| := by
+  rw [gt_iff, isPos_def] at h
+  obtain ⟨ a', ha'b, ha', h ⟩ := h
+  simp only [sub_zero] at h
+  rw [boundedAwayPos_def] at ha'b
+  obtain ⟨ c, hc, ha'b ⟩ := ha'b
+  -- Need to prove a is arbitrarily close to |a| after a certain point.
+  -- We know a is arbitrarily close to a' which is >= c so we can find a point where a is non-negative.
+  rw [Real.LIM_eq_LIM ha ha', Sequence.equiv_iff] at h
+  rw [Real.LIM_eq_LIM ha (Sequence.IsCauchy.abs ha), Sequence.equiv_iff]
+  specialize h c hc
+  obtain ⟨ N, hN ⟩ := h
+  intro _ _
+  use N
+  intro n hn
+  specialize hN n hn
+  specialize ha'b n
+  simp
+  have goal : a n ≥ 0
+  . rw [abs_le] at hN
+    linarith
+  rw [abs_of_nonneg goal]
+  simp
+  linarith
 
-theorem Real.LIM_abs {a:ℕ → ℚ} (ha: (a:Sequence).IsCauchy): |LIM a| = LIM |a| := by sorry
+theorem Real.LIM_abs {a:ℕ → ℚ} (ha: (a:Sequence).IsCauchy): |LIM a| = LIM |a| := by
+  obtain h | h | h := lt_trichotomy (LIM a) 0
+  . rw [_root_.abs_of_neg h]
+    set b := -a
+    have hb2 : LIM b > 0
+    . unfold b
+      rw [gt_iff]
+      rw [← gt_iff_lt, gt_iff] at h
+      suffices h : (LIM (-a) - 0) = (0 - LIM a)
+      . rwa [h]
+      simp
+      rw [Real.neg_LIM a ha]
+    have hb : (b:Sequence).IsCauchy
+    . simp [b]
+      exact Sequence.IsCauchy.neg a ha
+    have := Real.LIM.abs_eq_pos hb2 hb
+    calc
+      _ = LIM b := by {
+        simp [b]
+        rw [Real.neg_LIM a ha]
+      }
+      _ = LIM |b| := this
+      _ = _ := by simp [b]
+  . simp [h]
+    rw [← Real.LIM.zero] at h ⊢
+    rw [Real.LIM_eq_LIM ha (Sequence.IsCauchy.const _), Sequence.equiv_iff] at h
+    rw [Real.LIM_eq_LIM (Sequence.IsCauchy.const _) (Sequence.IsCauchy.abs ha), Sequence.equiv_iff]
+    simp at h ⊢
+    exact h
+  . have := Real.LIM.abs_eq_pos h ha
+    rwa [abs_of_nonneg (by linarith)]
 
 theorem Real.LIM_of_le' {x:Real} {a:ℕ → ℚ} (hcauchy: (a:Sequence).IsCauchy)
-    (h: ∃ N, ∀ n ≥ N, a n ≤ x) : LIM a ≤ x := by sorry
+    (h: ∃ N, ∀ n ≥ N, a n ≤ x) : LIM a ≤ x := by
+  -- Should be super similar proof to Real.LIM_of_le except we push chosen n further back.
+  obtain ⟨ b, hb, rfl ⟩ := Real.eq_lim x
+  -- Assume to the contrary that a > b.
+  contrapose! h
+  -- Then there exists c such that a' = a - b > c.
+  rw [← gt_iff_lt, gt_iff, Real.LIM_sub hcauchy hb, Real.isPos_def] at h
+  obtain ⟨ a', ha'b, ha', h ⟩ := h
+  rw [boundedAwayPos_def] at ha'b
+  obtain ⟨ c, hc, ha'b ⟩ := ha'b
+  -- Since a' is equivalent to a - b, find some N where difference is < c/2.
+  -- Also some N2 where b changes less than c/2.
+  rw [Real.LIM_eq_LIM (by {
+    apply Sequence.IsCauchy.sub
+    . exact hcauchy
+    . exact hb
+  }) ha', Sequence.equiv_iff] at h
+  specialize h (c/32) (by linarith)
+  obtain ⟨ N, hN ⟩ := h
+  rw [Sequence.IsCauchy.coe] at hcauchy
+  specialize hcauchy (c/32) (by linarith)
+  obtain ⟨ N2, hN2 ⟩ := hcauchy
+  intro N3
+  use N+N2+N3
+  use (by omega)
+  rw [← gt_iff_lt, gt_iff, Real.isPos_def]
+  use SwapFirst (fun n ↦ a (N+N2+N3) - b n) (N+N2+N3) c
+  have hc : ((↑fun n ↦ a (N+N2+N3) - b n):Sequence).IsCauchy
+  . have : (↑fun n ↦ a (N+N2+N3) - b n) = (↑fun _ ↦ a (N+N2+N3)) - b
+    . simp [funext_iff]
+    rw [this]
+    apply Sequence.IsCauchy.sub
+    . exact (Sequence.IsCauchy.const _)
+    . exact hb
+  split_ands
+  . apply SwapFirst_bounded_away_pos
+    use (c/32), (by linarith)
+    constructor
+    . intro n hn
+      -- a' is positive and so a n - b n which is arbitrarily close is also positive.
+      -- a n is arbitrarily close to a N and so the goal holds.
+      specialize hN n (by omega)
+      specialize ha'b n
+      unfold Section_4_3.dist at hN2
+      specialize hN2 n (by omega) (N+N2+N3) (by omega)
+      simp [abs_le] at hN2 hN
+      linarith
+    . linarith
+  . apply SwapFirst_cauchy
+    exact hc
+  . rw [SwapFirst_lim_eq hc, ratCast_def, Real.LIM_sub (Sequence.IsCauchy.const _) hb]
+    apply LIM_eq_fun_eq
+    simp [funext_iff]
 
 /-- Exercise 5.5.4 -/
 theorem Real.LIM_of_Cauchy {q:ℕ → ℚ} (hq: ∀ M, ∀ n ≥ M, ∀ n' ≥ M, |q n - q n'| ≤ 1 / (M+1)) :
