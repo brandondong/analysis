@@ -39,19 +39,43 @@ theorem Real.Icc_def (x y:Real) : .Icc x y = { z | x ≤ z ∧ z ≤ y } := rfl
 theorem Real.mem_Icc (x y z:Real) : z ∈ Set.Icc x y ↔ x ≤ z ∧ z ≤ y := by simp [Real.Icc_def]
 
 /-- Example 5.5.2 -/
-example (M: Real) : M ∈ upperBounds (.Icc 0 1) ↔ M ≥ 1 := by sorry
+example (M: Real) : M ∈ upperBounds (.Icc 0 1) ↔ M ≥ 1 := by
+  rw [Real.upperBound_def]
+  simp_rw [Real.mem_Icc]
+  constructor <;> intro h
+  . specialize h 1 (by norm_num)
+    exact h
+  . intro x hx
+    linarith
 
 /-- API for Example 5.5.3 -/
 theorem Real.Ioi_def (x:Real) : .Ioi x = { z | z > x } := rfl
 
 /-- Example 5.5.3 -/
-example : ¬ ∃ M : Real, M ∈ upperBounds (.Ioi 0) := by sorry
+example : ¬ ∃ M : Real, M ∈ upperBounds (.Ioi 0) := by
+  simp_rw [Real.upperBound_def, Real.Ioi_def]
+  push_neg
+  intro M
+  use |M|+1
+  constructor
+  . simp
+    have := abs_nonneg M
+    linarith
+  . have : |M| ≥ M := by exact le_abs_self M
+    linarith
 
 /-- Example 5.5.4 -/
-example : ∀ M, M ∈ upperBounds (∅ : Set Real) := by sorry
+example : ∀ M, M ∈ upperBounds (∅ : Set Real) := by
+  intro M
+  rw [Real.upperBound_def]
+  simp
 
 theorem Real.upperBound_upper {M M': Real} (h: M ≤ M') {E: Set Real} (hb: M ∈ upperBounds E) :
-    M' ∈ upperBounds E := by sorry
+    M' ∈ upperBounds E := by
+  rw [Real.upperBound_def] at hb ⊢
+  intro x hx
+  specialize hb x hx
+  linarith
 
 /-- Definition 5.5.5 (least upper bound).  Here we use the `isLUB` predicate defined in Mathlib. -/
 theorem Real.isLUB_def (E: Set Real) (M: Real) :
@@ -61,10 +85,25 @@ theorem Real.isGLB_def (E: Set Real) (M: Real) :
     IsGLB E M ↔ M ∈ lowerBounds E ∧ ∀ M' ∈ lowerBounds E, M' ≤ M := by rfl
 
 /-- Example 5.5.6 -/
-example : IsLUB (.Icc 0 1) (1 : Real) := by sorry
+example : IsLUB (.Icc 0 1) (1 : Real) := by
+  rw [Real.isLUB_def]
+  constructor
+  . simp [Real.upperBound_def]
+  simp_rw [Real.upperBound_def]
+  intro M
+  intro h
+  specialize h 1 (by simp)
+  exact h
 
 /-- Example 5.5.7 -/
-example : ¬∃ M, IsLUB (∅: Set Real) M := by sorry
+example : ¬∃ M, IsLUB (∅: Set Real) M := by
+  simp_rw [Real.isLUB_def]
+  push_neg
+  intro M hM
+  use M-1
+  constructor
+  . simp
+  . linarith
 
 /-- Proposition 5.5.8 (Uniqueness of least upper bound)-/
 theorem Real.LUB_unique {E: Set Real} {M M': Real} (h1: IsLUB E M) (h2: IsLUB E M') : M = M' := by grind [Real.isLUB_def]
