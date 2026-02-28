@@ -2321,91 +2321,153 @@ theorem SetTheory.Set.Fin.predAbove_succAbove {n} (i : Fin (n + 1)) (x : Fin n) 
     by_cases hxi2 : x + 1 < i <;> simp [hxi2]
     . omega
 
-open Classical in
+noncomputable def SetTheory.Set.Prod_to_perm {n: ℕ} (p: (Fin (n + 1) × ((Fin n) ≃ (Fin n)))) : ((Fin (n+1)) ≃ (Fin (n+1))) :=
+  let i := p.1;
+  let e := p.2;
+  sorry
+
+theorem SetTheory.Set.Prod_to_perm_bij {n: ℕ} : Function.Bijective (Prod_to_perm (n:=n)) := by
+  sorry
+
+noncomputable def SetTheory.Set.Equiv_pair {n: ℕ} : (Fin (n + 1) ×ˢ Permutations n) ≃ (Fin (n + 1) × ((Fin n) ≃ (Fin n))) := by
+  set f : (Fin (n + 1) ×ˢ Permutations n) → (Fin (n + 1) × ((Fin n) ≃ (Fin n))) := fun p ↦
+    let i := fst p;
+    let f := perm_equiv_equiv (snd p);
+    (i, f)
+  exact Equiv.ofBijective f (by {
+    constructor
+    . intro p1 p2 h
+      simp only [f, Prod.mk.injEq] at h
+      have hp1 := pair_eq_fst_snd p1
+      have hp2 := pair_eq_fst_snd p2
+      simp [← coe_inj, hp1, hp2]
+      simp only [coe_inj]
+      constructor
+      . exact h.1
+      . exact perm_equiv_equiv.injective h.2
+    . intro ⟨ i, e ⟩
+      use mk_cartesian i (perm_equiv_equiv.symm e)
+      simp [f]
+  })
+
 /-- Exercise 3.6.12 (i), second part -/
 theorem SetTheory.Set.Permutations_ih (n: ℕ):
     (Permutations (n + 1)).card = (n + 1) * (Permutations n).card := by
-  -- Given an i, filter Permutations elemnents (bijective n -> n) where f last = i.
-  let S i := (Permutations (n + 1)).specify (fun p ↦ perm_equiv_equiv p (Fin.last n) = i)
+  obtain ⟨ hpf, hp ⟩ := card_prod (Fin_finite (n+1)) (Permutations_finite n)
+  have hn := Fin_card (n+1)
+  rw [← hn, ← hp, hn]; clear hn hp hpf
+  apply EquivCard_to_card_eq
+  have equiv : (Permutations (n + 1)) ≃ (Fin (n + 1) ×ˢ Permutations n)
+  . have e1 := Equiv.ofBijective (Prod_to_perm (n:=n)) Prod_to_perm_bij
+    have e2 := Equiv.trans e1 (perm_equiv_equiv.symm)
+    have e3 := SetTheory.Set.Equiv_pair (n:=n)
+    exact Equiv.trans e2.symm e3.symm
+  use equiv
+  exact equiv.bijective
 
-  -- Need to create a mapping between this and Permutations n.
-  -- Intuitively, the cardinalities must match since we're fixing the last element in n+1 function.
-  -- Equiv.ofBijective (Permutations_toFun p) (Permutations_bijective p)
-  -- Given a f taking Fin (n+1), need to create a f' taking Fin n.
-  -- Find the bad x mapping to n and then swap that with the last element instead.
-  have hSe : ∀ i, S i ≈ Permutations n := by
-    intro i
-    -- Hint: you might find `perm_equiv_equiv`, `Fin.succAbove`, and `Fin.predAbove` useful.
-    have equiv : S i ≃ Permutations n
-    . set f: (S i).toSubtype → (Permutations n) := fun si ↦
-        -- Horrible function casting...
-        let hsi := ((specification_axiom'' _ si).mp si.2).choose;
-        let p := (⟨ si, hsi ⟩:Permutations (n + 1));
-        let f := Permutations_toFun p;
-        let hf := Permutations_bijective p;
-        -- Do a swap with f x = n and the last element value.
-        -- Edge case is if f n = n...
-        let f' : (Fin n) → (Fin n) := if hi:i = (Fin.last n) then
-          fun x' ↦ Fin.predAbove (Fin.last n) (f (Fin.castSucc x')) (by sorry)
-          else
-          fun x' ↦
-            if he:(f (Fin.castSucc x')) = (Fin.last n) then Fin.predAbove (Fin.last n) i hi
-            else Fin.predAbove (Fin.last n) (f (Fin.castSucc x')) he;
-        ⟨ f', by sorry ⟩
-      have hf : Function.Bijective f
-      . constructor
-        . sorry
-        . intro ⟨ p, hp ⟩
-          simp [Permutations] at hp
-          obtain ⟨ ⟨ g, hp2 ⟩, hg ⟩ := hp
-          simp only [← hp2]
-          -- If i = n, this is trivial.
-          -- Otherwise find which f x = i and then create a new function f' where f' x = n.
-          sorry
-      exact Equiv.ofBijective f hf
-    use equiv, equiv.injective, equiv.surjective
+-- open Classical in
+-- theorem SetTheory.Set.Permutations_ih2 (n: ℕ):
+--     (Permutations (n + 1)).card = (n + 1) * (Permutations n).card := by
+--   -- Given an i, filter Permutations elemnents (bijective n -> n) where f last = i.
+--   let S i := (Permutations (n + 1)).specify (fun p ↦ perm_equiv_equiv p (Fin.last n) = i)
 
-  -- Hint: you might find `card_iUnion_card_disjoint` and `Permutations_finite` useful.
-  -- All S i have (Permutations n).card and are pairwise disjoint.
-  have hSc : ∀ i, (S i).has_card ((Permutations n).card)
-  . intro i
-    specialize hSe i
-    have hP := has_card_card (Permutations_finite n)
-    exact (EquivCard_to_has_card_eq hSe).mpr hP
-  have hSd : Pairwise fun i j => Disjoint (S i) (S j)
-  . intro i j hij
-    simp [disjoint_iff, SetTheory.Set.ext_iff]
-    intro f hfi hfj
-    simp [S] at hfi hfj
-    obtain ⟨ hfi, hi ⟩ := hfi
-    obtain ⟨ hfj, hj ⟩ := hfj
-    simp [hj] at hi
-    simp [← Fin.coe_inj] at hi
-    simp [hi] at hij
-  -- Indexed union set = (Permutations (n + 1)), completing the required relation.
-  have := (card_iUnion_card_disjoint hSc hSd).2
-  have he : Permutations (n + 1) = ((Fin (n + 1)).iUnion S)
-  . simp [Permutations]
-    ext f
-    simp only [mem_iUnion, specification_axiom'']
-    constructor <;> intro hf
-    . obtain ⟨ hf, hfb ⟩ := hf
-      set i := pow_fun_equiv ⟨f, hf⟩ (Fin.last n)
-      use i
-      simp [S, Permutations]
-      use (by {
-        use pow_fun_equiv ⟨f, hf⟩
-        simp [pow_fun_equiv]
-        set c := pow_fun_equiv._proof_1 ⟨f, hf⟩
-        have hc := c.choose_spec
-        simp [hc]
-      })
-    . obtain ⟨ i, hf ⟩ := hf
-      simp [S] at hf
-      obtain ⟨ hf, _ ⟩ := hf
-      simp only [Permutations, specification_axiom''] at hf
-      exact hf
-  rwa [he]
+--   -- Need to create a mapping between this and Permutations n.
+--   -- Intuitively, the cardinalities must match since we're fixing the last element in n+1 function.
+--   -- Equiv.ofBijective (Permutations_toFun p) (Permutations_bijective p)
+--   -- Given a f taking Fin (n+1), need to create a f' taking Fin n.
+--   -- Find the bad x mapping to n and then swap that with the last element instead.
+--   have hSe : ∀ i, S i ≈ Permutations n := by
+--     intro i
+--     -- Hint: you might find `perm_equiv_equiv`, `Fin.succAbove`, and `Fin.predAbove` useful.
+--     have equiv : S i ≃ Permutations n
+--     . set f: (S i).toSubtype → (Permutations n) := fun si ↦
+--         -- Horrible function casting...
+--         let hsi := ((specification_axiom'' _ si).mp si.2).choose;
+--         let p := (⟨ si, hsi ⟩:Permutations (n + 1));
+--         let f := Permutations_toFun p;
+--         let hf := Permutations_bijective p;
+--         -- Do a swap with f x = n and the last element value.
+--         -- Edge case is if f n = n...
+--         let f' : (Fin n) → (Fin n) := if hi:i = (Fin.last n) then
+--           fun x' ↦ Fin.predAbove (Fin.last n) (f (Fin.castSucc x')) (by sorry)
+--           else
+--           fun x' ↦
+--             if he:(f (Fin.castSucc x')) = (Fin.last n) then Fin.predAbove (Fin.last n) i hi
+--             else Fin.predAbove (Fin.last n) (f (Fin.castSucc x')) he;
+--         ⟨ f', by sorry ⟩
+--       have hf : Function.Bijective f
+--       . constructor
+--         . intro s1 s2 h
+--           -- If i = n, this is trivial.
+--           -- Basically proving function equality.
+--           simp [f] at h
+--           by_cases hi : i = n <;> simp [hi] at h
+--           . simp [Permutations_toFun] at h
+--             set c1 := Permutations_toFun._proof_2 ⟨↑s1, Exists.choose ((specification_axiom'' (fun p ↦ (perm_equiv_equiv p) (Fin.last n) = i) ↑s1).mp s1.property)⟩ (Permutations_toFun._proof_1 ⟨↑s1, Exists.choose ((specification_axiom'' (fun p ↦ (perm_equiv_equiv p) (Fin.last n) = i) ↑s1).mp s1.property)⟩)
+--             set c2 := Permutations_toFun._proof_2 ⟨↑s2, Exists.choose ((specification_axiom'' (fun p ↦ (perm_equiv_equiv p) (Fin.last n) = i) ↑s2).mp s2.property)⟩ (Permutations_toFun._proof_1 ⟨↑s2, Exists.choose ((specification_axiom'' (fun p ↦ (perm_equiv_equiv p) (Fin.last n) = i) ↑s2).mp s2.property)⟩)
+--             have hc1 := c1.choose_spec
+--             have hc2 := c2.choose_spec
+--             set d1 := c1.choose
+--             set d2 := c2.choose
+--             simp at hc1
+--             simp at hc2
+--             simp [← coe_inj, ← hc1, ← hc2]
+--             rw [funext_iff]
+--             sorry
+--           . -- If s1 x = n then s2 x must also or else the overall function cannot be i as well (x != last).
+--             -- If s1 x != n, same reasoning.
+--             sorry
+--         . intro ⟨ p, hp ⟩
+--           simp [Permutations] at hp
+--           obtain ⟨ ⟨ g, hp2 ⟩, hg ⟩ := hp
+--           simp only [← hp2]
+--           -- If i = n, this is trivial.
+--           -- Otherwise find which f x = i and then create a new function f' where f' x = n.
+--           sorry
+--       exact Equiv.ofBijective f hf
+--     use equiv, equiv.injective, equiv.surjective
+
+--   -- Hint: you might find `card_iUnion_card_disjoint` and `Permutations_finite` useful.
+--   -- All S i have (Permutations n).card and are pairwise disjoint.
+--   have hSc : ∀ i, (S i).has_card ((Permutations n).card)
+--   . intro i
+--     specialize hSe i
+--     have hP := has_card_card (Permutations_finite n)
+--     exact (EquivCard_to_has_card_eq hSe).mpr hP
+--   have hSd : Pairwise fun i j => Disjoint (S i) (S j)
+--   . intro i j hij
+--     simp [disjoint_iff, SetTheory.Set.ext_iff]
+--     intro f hfi hfj
+--     simp [S] at hfi hfj
+--     obtain ⟨ hfi, hi ⟩ := hfi
+--     obtain ⟨ hfj, hj ⟩ := hfj
+--     simp [hj] at hi
+--     simp [← Fin.coe_inj] at hi
+--     simp [hi] at hij
+--   -- Indexed union set = (Permutations (n + 1)), completing the required relation.
+--   have := (card_iUnion_card_disjoint hSc hSd).2
+--   have he : Permutations (n + 1) = ((Fin (n + 1)).iUnion S)
+--   . simp [Permutations]
+--     ext f
+--     simp only [mem_iUnion, specification_axiom'']
+--     constructor <;> intro hf
+--     . obtain ⟨ hf, hfb ⟩ := hf
+--       set i := pow_fun_equiv ⟨f, hf⟩ (Fin.last n)
+--       use i
+--       simp [S, Permutations]
+--       use (by {
+--         use pow_fun_equiv ⟨f, hf⟩
+--         simp [pow_fun_equiv]
+--         set c := pow_fun_equiv._proof_1 ⟨f, hf⟩
+--         have hc := c.choose_spec
+--         simp [hc]
+--       })
+--     . obtain ⟨ i, hf ⟩ := hf
+--       simp [S] at hf
+--       obtain ⟨ hf, _ ⟩ := hf
+--       simp only [Permutations, specification_axiom''] at hf
+--       exact hf
+--   rwa [he]
 
 /-- Exercise 3.6.12 (ii) -/
 theorem SetTheory.Set.Permutations_card (n: ℕ):
