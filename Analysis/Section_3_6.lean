@@ -2149,6 +2149,11 @@ theorem SetTheory.Set.Fin.castSucc_ne {n} (x : Fin n) : castSucc x ≠ n := by
   simp at contra
   omega
 
+@[simp]
+theorem SetTheory.Set.Fin.castSucc_ne' {n} (x : Fin n) : n ≠ castSucc x := by
+  symm
+  simp
+
 /-- Any {lean}`Fin (n + 1)` except {lean}`n` can be cast to {lean}`Fin n`. Compare to Mathlib {name}`Fin.castPred`. -/
 noncomputable def SetTheory.Set.Fin.castPred {n} (x : Fin (n + 1)) (h : (x : ℕ) ≠ n) : Fin n :=
   Fin_mk _ (x : ℕ) (by have := Fin.toNat_lt x; omega)
@@ -2317,91 +2322,173 @@ theorem SetTheory.Set.Fin.predAbove_succAbove {n} (i : Fin (n + 1)) (x : Fin n) 
     by_cases hxi2 : x + 1 < i <;> simp [hxi2]
     . omega
 
+theorem SetTheory.Set.Fin.predAbove_inj {n: ℕ} {i x y: Fin (n+1)} {hx : x ≠ i} {hy : y ≠ i} (h: Fin.predAbove i x hx = (Fin.predAbove i y hy)) : x = y := by
+  obtain ⟨ x, hx2, rfl ⟩ := SetTheory.Set.mem_Fin' x
+  obtain ⟨ y, hy2, rfl ⟩ := SetTheory.Set.mem_Fin' y
+  obtain ⟨ i, hi, rfl ⟩ := SetTheory.Set.mem_Fin' i
+  simp at hx hy ⊢
+  simp [predAbove] at h
+  have hs : x < i ↔ y < i
+  . constructor <;> intro hx <;> by_contra hy <;> simp [hx, hy] at h <;> omega
+  by_cases h2 : x < i
+  . have h3 : y < i := by tauto
+    simp [h2, h3] at h
+    exact h
+  . have h3 : ¬ y < i := by tauto
+    simp [h2, h3] at h
+    omega
+
+  theorem SetTheory.Set.Fin.succAbove_inj {n: ℕ} {i: Fin (n+1)} {x y: Fin (n)} (h: Fin.succAbove i x = (Fin.succAbove i y)) : x = y := by
+    obtain ⟨ x, hx2, rfl ⟩ := SetTheory.Set.mem_Fin' x
+    obtain ⟨ y, hy2, rfl ⟩ := SetTheory.Set.mem_Fin' y
+    obtain ⟨ i, hi, rfl ⟩ := SetTheory.Set.mem_Fin' i
+    simp
+    simp [succAbove] at h
+    rw [← Fin.coe_inj] at h
+    by_cases hx : x < i <;> by_cases hy : y < i <;> simp [hx, hy] at h <;> omega
+
 open Classical in
+noncomputable def SetTheory.Set.Prod_to_perm_shift {n: ℕ} (p: (Fin (n + 1) × ((Fin n) ≃ (Fin n)))) : ((Fin (n+1)) ≃ (Fin (n+1))) :=
+  let i := p.1;
+  let e := p.2;
+  let f := fun x ↦ if hx: x = i then (Fin.last _)
+    else
+      let x2 := Fin.predAbove i x hx;
+      Fin.castSucc (e x2);
+  Equiv.ofBijective f (by {
+    constructor
+    . intro x1 x2 h
+      obtain ⟨ x1, hx1, rfl ⟩ := SetTheory.Set.mem_Fin' x1
+      obtain ⟨ x2, hx2, rfl ⟩ := SetTheory.Set.mem_Fin' x2
+      simp [f] at h
+      simp
+      have hs : x1 = i ↔ x2 = i
+      . constructor <;> intro hx <;> by_contra hc <;> simp [hx, hc] at h
+      by_cases hxi1 : x1 = i
+      . have hxi2 : x2 = i := by tauto
+        rw [hxi1, hxi2]
+      . have hxi2 : ¬ x2 = i := by tauto
+        simp [hxi1, hxi2, ← Fin.coe_inj] at h
+        have := Fin.predAbove_inj h
+        simp at this
+        exact this
+    . intro y
+      obtain ⟨ y, hy, rfl ⟩ := SetTheory.Set.mem_Fin' y
+      unfold f
+      by_cases hy2 : y = n
+      . use i
+        simp [hy2]
+      . have hy3 : y < n := by omega
+        obtain ⟨ x, hx ⟩ := e.surjective (Fin_mk _ y hy3)
+        use Fin.succAbove i x
+        simp [hx, Fin.castSucc]
+  })
+
+theorem SetTheory.Set.Prod_to_perm_shift_inj {n: ℕ} : Function.Injective (Prod_to_perm_shift (n:=n)) := by
+  intro ⟨ i1, e1 ⟩ ⟨ i2, e2 ⟩ h
+  obtain ⟨ i1, hi1, rfl ⟩ := SetTheory.Set.mem_Fin' i1
+  obtain ⟨ i2, hi2, rfl ⟩ := SetTheory.Set.mem_Fin' i2
+  simp
+  simp [Prod_to_perm_shift] at h
+  simp only [Equiv.ext_iff, Equiv.ofBijective_apply] at h
+  have hi : i1 = i2
+  . contrapose! h
+    use Fin_mk _ i1 hi1
+    simp [h]
+  use hi
+  simp_rw [← hi] at h
+  ext x
+  specialize h (Fin.succAbove (Fin_mk _ i1 hi1) x)
+  simp at h
+  have hne : ¬ ↑(Fin.succAbove (Fin_mk (n + 1) i1 hi1) x) = i1
+  . have h := Fin.succAbove_ne (Fin_mk (n + 1) i1 hi1) x
+    contrapose! h
+    rw [Fin.coe_inj, h]
+    simp
+  simp [hne, Fin.castSucc] at h
+  simp [coe_inj, h]
+
+open Classical in
+theorem SetTheory.Set.Prod_to_perm_shift_bij {n: ℕ} : Function.Bijective (Prod_to_perm_shift (n:=n)) := by
+  constructor
+  . exact Prod_to_perm_shift_inj
+  intro e
+  set f: (Fin n) → (Fin n) := fun x ↦
+    let i := e.symm (Fin.last _);
+    let x' := Fin.succAbove i x
+    let y := e x';
+    Fin_mk _ y (by {
+      unfold y; clear y
+      -- e i = n but x' != i.
+      suffices h : e x' ≠ Fin.last _
+      . simp at h
+        have : e x' < n+1 := by exact Fin.toNat_lt (e x')
+        omega
+      have hi : e i = Fin.last _
+      . simp [i]
+      have hx' : x' ≠ i
+      . simp [x']
+      contrapose! hx'
+      rw [← hi] at hx'
+      exact e.injective hx'
+    });
+  use (e.symm (Fin.last _), Equiv.ofBijective f (by {
+    constructor
+    . intro x1 x2 h
+      simp [f, coe_inj] at h
+      rw [← Fin.coe_inj] at h
+      exact Fin.succAbove_inj h
+    . intro y
+      set i := e.symm (Fin.last _);
+      set x := e.symm (Fin.castSucc y)
+      use Fin.predAbove i x (by {
+        simp [i, x]
+      })
+      simp [f, x, i, Fin.castSucc]
+  }))
+  ext x
+  obtain ⟨ x, hx, rfl ⟩ := SetTheory.Set.mem_Fin' x
+  simp [Prod_to_perm_shift, f]
+  rw [coe_inj]
+  by_cases hx2 : x = ↑(e.symm (Fin.last n)) <;> simp [hx2]
+  . simp [Fin.last, Fin_mk]
+  . simp [Fin.castSucc]
+
+noncomputable def SetTheory.Set.Equiv_pair {n: ℕ} : (Fin (n + 1) ×ˢ Permutations n) ≃ (Fin (n + 1) × ((Fin n) ≃ (Fin n))) := by
+  set f : (Fin (n + 1) ×ˢ Permutations n) → (Fin (n + 1) × ((Fin n) ≃ (Fin n))) := fun p ↦
+    let i := fst p;
+    let f := perm_equiv_equiv (snd p);
+    (i, f)
+  exact Equiv.ofBijective f (by {
+    constructor
+    . intro p1 p2 h
+      simp only [f, Prod.mk.injEq] at h
+      have hp1 := pair_eq_fst_snd p1
+      have hp2 := pair_eq_fst_snd p2
+      simp [← coe_inj, hp1, hp2]
+      simp only [coe_inj]
+      constructor
+      . exact h.1
+      . exact perm_equiv_equiv.injective h.2
+    . intro ⟨ i, e ⟩
+      use mk_cartesian i (perm_equiv_equiv.symm e)
+      simp [f]
+  })
+
 /-- Exercise 3.6.12 (i), second part -/
 theorem SetTheory.Set.Permutations_ih (n: ℕ):
     (Permutations (n + 1)).card = (n + 1) * (Permutations n).card := by
-  -- Given an i, filter Permutations elemnents (bijective n -> n) where f last = i.
-  let S i := (Permutations (n + 1)).specify (fun p ↦ perm_equiv_equiv p (Fin.last n) = i)
-
-  -- Need to create a mapping between this and Permutations n.
-  -- Intuitively, the cardinalities must match since we're fixing the last element in n+1 function.
-  -- Equiv.ofBijective (Permutations_toFun p) (Permutations_bijective p)
-  -- Given a f taking Fin (n+1), need to create a f' taking Fin n.
-  -- Find the bad x mapping to n and then swap that with the last element instead.
-  have hSe : ∀ i, S i ≈ Permutations n := by
-    intro i
-    -- Hint: you might find `perm_equiv_equiv`, `Fin.succAbove`, and `Fin.predAbove` useful.
-    have equiv : S i ≃ Permutations n
-    . set f: (S i).toSubtype → (Permutations n) := fun si ↦
-        -- Horrible function casting...
-        let hsi := ((specification_axiom'' _ si).mp si.2).choose;
-        let p := (⟨ si, hsi ⟩:Permutations (n + 1));
-        let f := Permutations_toFun p;
-        let hf := Permutations_bijective p;
-        -- Do a swap with f x = n and the last element value.
-        -- Edge case is if f n = n...
-        let f' : (Fin n) → (Fin n) := if hi:i = (Fin.last n) then
-          fun x' ↦ Fin.predAbove (Fin.last n) (f (Fin.castSucc x')) (by sorry)
-          else
-          fun x' ↦
-            if he:(f (Fin.castSucc x')) = (Fin.last n) then Fin.predAbove (Fin.last n) i hi
-            else Fin.predAbove (Fin.last n) (f (Fin.castSucc x')) he;
-        ⟨ f', by sorry ⟩
-      have hf : Function.Bijective f
-      . constructor
-        . sorry
-        . intro ⟨ p, hp ⟩
-          simp [Permutations] at hp
-          obtain ⟨ ⟨ g, hp2 ⟩, hg ⟩ := hp
-          simp only [← hp2]
-          -- If i = n, this is trivial.
-          -- Otherwise find which f x = i and then create a new function f' where f' x = n.
-          sorry
-      exact Equiv.ofBijective f hf
-    use equiv, equiv.injective, equiv.surjective
-
-  -- Hint: you might find `card_iUnion_card_disjoint` and `Permutations_finite` useful.
-  -- All S i have (Permutations n).card and are pairwise disjoint.
-  have hSc : ∀ i, (S i).has_card ((Permutations n).card)
-  . intro i
-    specialize hSe i
-    have hP := has_card_card (Permutations_finite n)
-    exact (EquivCard_to_has_card_eq hSe).mpr hP
-  have hSd : Pairwise fun i j => Disjoint (S i) (S j)
-  . intro i j hij
-    simp [disjoint_iff, SetTheory.Set.ext_iff]
-    intro f hfi hfj
-    simp [S] at hfi hfj
-    obtain ⟨ hfi, hi ⟩ := hfi
-    obtain ⟨ hfj, hj ⟩ := hfj
-    simp [hj] at hi
-    simp [← Fin.coe_inj] at hi
-    simp [hi] at hij
-  -- Indexed union set = (Permutations (n + 1)), completing the required relation.
-  have := (card_iUnion_card_disjoint hSc hSd).2
-  have he : Permutations (n + 1) = ((Fin (n + 1)).iUnion S)
-  . simp [Permutations]
-    ext f
-    simp only [mem_iUnion, specification_axiom'']
-    constructor <;> intro hf
-    . obtain ⟨ hf, hfb ⟩ := hf
-      set i := pow_fun_equiv ⟨f, hf⟩ (Fin.last n)
-      use i
-      simp [S, Permutations]
-      use (by {
-        use pow_fun_equiv ⟨f, hf⟩
-        simp [pow_fun_equiv]
-        set c := pow_fun_equiv._proof_1 ⟨f, hf⟩
-        have hc := c.choose_spec
-        simp [hc]
-      })
-    . obtain ⟨ i, hf ⟩ := hf
-      simp [S] at hf
-      obtain ⟨ hf, _ ⟩ := hf
-      simp only [Permutations, specification_axiom''] at hf
-      exact hf
-  rwa [he]
+  obtain ⟨ hpf, hp ⟩ := card_prod (Fin_finite (n+1)) (Permutations_finite n)
+  have hn := Fin_card (n+1)
+  rw [← hn, ← hp, hn]; clear hn hp hpf
+  apply EquivCard_to_card_eq
+  have equiv  : (Permutations (n + 1)) ≃ (Fin (n + 1) ×ˢ Permutations n)
+  . have e1 := Equiv.ofBijective (Prod_to_perm_shift (n:=n)) Prod_to_perm_shift_bij
+    have e2 := Equiv.trans e1 (perm_equiv_equiv.symm)
+    have e3 := SetTheory.Set.Equiv_pair (n:=n)
+    exact Equiv.trans e2.symm e3.symm
+  use equiv
+  exact equiv.bijective
 
 /-- Exercise 3.6.12 (ii) -/
 theorem SetTheory.Set.Permutations_card (n: ℕ):
