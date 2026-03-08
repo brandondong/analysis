@@ -1,5 +1,6 @@
 import Mathlib.Tactic
 import Analysis.Section_5_4
+import Analysis.Section_4_4
 
 
 /-!
@@ -119,7 +120,28 @@ theorem Real.upperBound_between {E: Set Real} {n:ℕ} {L K:ℤ} (hLK: L < K)
     ∃ m, L < m
     ∧ m ≤ K
     ∧ m*((1/(n+1):ℚ):Real) ∈ upperBounds E
-    ∧ (m-1)*((1/(n+1):ℚ):Real) ∉ upperBounds E := by sorry
+    ∧ (m-1)*((1/(n+1):ℚ):Real) ∉ upperBounds E := by
+  set r: Real := ↑(1 / ((n:ℚ) + 1))
+  -- Contrapositive: Assume there is no switch point -> prove K is not an upper bound.
+  contrapose! hK
+  -- We can use induction from L up to K to show that these are all not upper bounds.
+  rw [lt_iff_exists_pos_add] at hLK
+  obtain ⟨ c, hc, rfl ⟩ := hLK
+  obtain ⟨ c, rfl ⟩ := Int.eq_succ_of_zero_lt hc
+  clear hc
+  suffices h (c': ℕ) (hc': c' ≤ c+1) : ↑(L + (↑c')) * r ∉ upperBounds E
+  . specialize h (c+1) (by omega)
+    exact h
+  induction' c' with c' IH
+  . simp [hL]
+  contrapose! hK
+  use L + ↑(c' + 1), (by omega), (by omega), hK
+  specialize IH (by omega)
+  suffices h : ((L + ↑(c' + 1)):ℤ) - (1:Real) = ((L + ↑c'):ℤ)
+  . rw [h]
+    exact IH
+  simp
+  linarith
 
 /-- Exercise 5.5.3 -/
 theorem Real.upperBound_discrete_unique {E: Set Real} {n:ℕ} {m m':ℤ}
@@ -127,7 +149,34 @@ theorem Real.upperBound_discrete_unique {E: Set Real} {n:ℕ} {m m':ℤ}
   (hm2: (((m:ℚ) / (n+1) - 1 / (n+1):ℚ):Real) ∉ upperBounds E)
   (hm'1: (((m':ℚ) / (n+1):ℚ):Real) ∈ upperBounds E)
   (hm'2: (((m':ℚ) / (n+1) - 1 / (n+1):ℚ):Real) ∉ upperBounds E) :
-    m = m' := by sorry
+    m = m' := by
+  set r: ℚ := ((n:ℚ) + 1)
+  -- Assume to the contrary that m != m'.
+  by_contra hne
+  -- Wlog: m < m', then (m'-1)/r must be an upper bound.
+  wlog h : m < m' generalizing m m'
+  . exact this hm'1 hm'2 hm1 hm2 (by omega) (by omega)
+  contrapose! hm'2; clear hm'2 hne hm'1 hm2
+  rw [upperBound_def] at *
+  intro x hx
+  specialize hm1 x hx
+  replace h : m ≤ m'-1 := by omega
+  have hr : r > 0
+  . unfold r
+    linarith
+  have hm : ↑m≤ (↑m' - 1:ℚ) := by norm_cast
+  calc
+    x ≤ ((↑m / r):ℚ) := hm1
+    _ ≤ (((m'-1) / r):ℚ) := by {
+      suffices h : (↑m / r) ≤ ↑((↑m' - 1) / r)
+      . exact GCongr.ratCast_le_ratCast h
+      exact (div_le_div_iff_of_pos_right hr).mpr hm
+    }
+    _ = _ := by {
+      suffices h : (((m'-1) / r):ℚ) = (↑m' / r - 1 / r)
+      . rw [h]
+      exact sub_div (↑m') 1 r
+    }
 
 /-- Lemmas that can be helpful for proving 5.5.4 -/
 theorem Sequence.IsCauchy.abs {a:ℕ → ℚ} (ha: (a:Sequence).IsCauchy):
@@ -302,7 +351,42 @@ theorem Real.LIM_of_le' {x:Real} {a:ℕ → ℚ} (hcauchy: (a:Sequence).IsCauchy
 
 /-- Exercise 5.5.4 -/
 theorem Real.LIM_of_Cauchy {q:ℕ → ℚ} (hq: ∀ M, ∀ n ≥ M, ∀ n' ≥ M, |q n - q n'| ≤ 1 / (M+1)) :
-    (q:Sequence).IsCauchy ∧ ∀ M, |q M - LIM q| ≤ 1 / (M+1) := by sorry
+    (q:Sequence).IsCauchy ∧ ∀ M, |q M - LIM q| ≤ 1 / (M+1) := by
+  have hqc : (q:Sequence).IsCauchy
+  . rw [Sequence.IsCauchy.coe]
+    intro e he
+    unfold Section_4_3.dist
+    -- Need N such that 1 / (N + 1) <= e.
+    -- Equivalently, 1/e-1 <= 1/e <= N
+    obtain ⟨ N, hN ⟩ := exists_nat_gt (1/e)
+    use N
+    intro j hj k hk
+    specialize hq N j hj k hk
+    have goal : 1 / (N + 1) ≤ e
+    . rw [one_div_le]
+      . linarith
+      . linarith
+      . exact he
+    linarith
+  use hqc
+  intro M
+  have h : (((fun (x:ℕ) ↦ q M) - q):Sequence).IsCauchy
+  . apply Sequence.IsCauchy.sub
+    . exact Sequence.IsCauchy.const _
+    . exact hqc
+  rw [ratCast_def, Real.LIM_sub (Sequence.IsCauchy.const _) hqc, Real.LIM_abs h]
+  apply Real.LIM_of_le'
+  . apply Sequence.IsCauchy.abs
+    exact h
+  use M
+  intro n hn
+  specialize hq M M (by omega) n hn
+  simp only [Pi.abs_apply, Pi.sub_apply, Rat.cast_abs, Rat.cast_sub]
+  norm_cast
+  have : 1 / ((((M:ℕ) + 1):ℕ):Real) = ((1:ℚ) / ((M:ℚ) + (1:ℚ)):ℚ)
+  . simp
+  rw [this]; clear this
+  exact GCongr.ratCast_le_ratCast hq
 
 /--
 The sequence m₁, m₂, … is well-defined.
@@ -469,7 +553,18 @@ theorem Real.exist_sqrt_two : ∃ x:Real, x^2 = 2 := by
       _ ≥ x^2 - 2 * ε * 2 + 0 * 0 := by gcongr
       _ = x^2 - 4 * ε := by ring
       _ > 2 := hε3
-    have why (y:Real) (hy: y ∈ E) : x - ε ≥ y := by sorry
+    have why (y:Real) (hy: y ∈ E) : x - ε ≥ y
+    . by_contra hc
+      simp at hc
+      have hc2 : (x - ε) ^ 2 < y ^ 2
+      . have h1 : x - ε > 0 := by linarith
+        have hy : y > 0 := by linarith
+        calc
+          _ = (x - ε) * (x - ε) := by ring
+          _ < y * y := by gcongr
+          _ = _ := by ring
+      simp [E] at hy
+      linarith
     have claim13: x-ε ∈ upperBounds E := by rwa [upperBound_def]
     have claim14: x ≤ x-ε := by grind [isLUB_def]
     linarith
@@ -491,17 +586,65 @@ theorem Real.exist_sqrt_two : ∃ x:Real, x^2 = 2 := by
     linarith
   assumption
 
+theorem Real.exist_irrational_gt_one : ∃ x:Real, (¬ ∃ q:ℚ, x = (q:Real)) ∧ x > 1 := by
+  obtain ⟨ x, hx ⟩ := Real.exist_sqrt_two
+  use |x|
+  constructor
+  . have h := Rat.not_exist_sqrt_two
+    contrapose! h
+    obtain ⟨ q, hq ⟩ := h
+    use q
+    -- norm_cast at hx
+    have : |x|^2 = x ^ 2 := by exact sq_abs x
+    rw [← this, hq] at hx
+    norm_cast at hx
+  . contrapose! hx
+    rw [abs_le] at hx
+    suffices h : x ^ 2 <= 1
+    . linarith
+    simp [abs_le]
+    exact hx
+
 /-- Remark 5.5.13 -/
-theorem Real.exist_irrational : ∃ x:Real, ¬ ∃ q:ℚ, x = (q:Real) := by sorry
+theorem Real.exist_irrational : ∃ x:Real, ¬ ∃ q:ℚ, x = (q:Real) := by
+  obtain ⟨ x, hx, _ ⟩ := Real.exist_irrational_gt_one
+  use x
 
 /-- Helper lemma for Exercise 5.5.1. -/
 theorem Real.mem_neg (E: Set Real) (x:Real) : x ∈ -E ↔ -x ∈ E := Set.mem_neg
 
 /-- Exercise 5.5.1-/
-theorem Real.inf_neg {E: Set Real} {M:Real} (h: IsLUB E M) : IsGLB (-E) (-M) := by sorry
+theorem Real.inf_neg {E: Set Real} {M:Real} (h: IsLUB E M) : IsGLB (-E) (-M) := by
+  simp only [isLUB_def, upperBound_def] at h
+  simp only [isGLB_def, lowerBound_def]
+  obtain ⟨ h1, h2 ⟩ := h
+  constructor
+  . intro x hx
+    rw [Real.mem_neg] at hx
+    specialize h1 (-x) hx
+    linarith
+  . intro M'
+    specialize h2 (-M')
+    intro h3
+    suffices h4 : (∀ x ∈ E, x ≤ -M')
+    . have := h2 h4
+      linarith
+    intro x hx
+    specialize h3 (-x)
+    suffices h4 : -x ∈ -E
+    . specialize h3 h4
+      linarith
+    exact Set.neg_mem_neg.mpr hx
 
 theorem Real.GLB_exist {E: Set Real} (hE: Set.Nonempty E) (hbound: BddBelow E): ∃ S, IsGLB E S := by
-  sorry
+  have hE': Set.Nonempty (-E) := by exact Set.Nonempty.neg hE
+  have hbound': BddAbove (-E)
+  . exact BddBelow.neg hbound
+  obtain ⟨ M, hM ⟩ := Real.LUB_exist hE' hbound'
+  have h := Real.inf_neg hM
+  use -M
+  simp at h
+  exact h
 
 open Classical in
 noncomputable abbrev ExtendedReal.inf (E: Set Real) : ExtendedReal :=
@@ -521,7 +664,49 @@ theorem ExtendedReal.inf_of_bounded_finite {E: Set Real} (hnon: E.Nonempty) (hb:
 
 /-- Exercise 5.5.5 -/
 theorem Real.irrat_between {x y:Real} (hxy: x < y) :
-    ∃ z, x < z ∧ z < y ∧ ¬ ∃ q:ℚ, z = (q:Real) := by sorry
+    ∃ z, x < z ∧ z < y ∧ ¬ ∃ q:ℚ, z = (q:Real) := by
+  -- Consider a, b rationals such that x < a < b < y.
+  -- Then a + (b-a)/sqrt(2) fits the bounds and is irrational.
+  obtain ⟨ b, hb1, hb2 ⟩ := Real.rat_between hxy
+  obtain ⟨ a, ha1, ha2 ⟩ := Real.rat_between hb1
+  obtain ⟨ i, hi, hi1 ⟩ := Real.exist_irrational_gt_one
+  use a + (b-a)/i
+  have hba1 : (b:Real) - a > 0 := by linarith
+  have hi2' : i > 0 := by linarith
+  have hbai : (b-a)/i < b-a
+  . have : (↑b - ↑a) / i = (↑b - ↑a) * i⁻¹ := by ring
+    rw [this]; clear this
+    have : i⁻¹ < 1
+    . field_simp
+      rw [one_div_lt (by linarith) (by norm_num)]
+      simp [hi1]
+    calc
+      _ < (↑b - ↑a) * (1:Real) := by exact mul_lt_mul_of_pos_left i⁻¹ 1 (↑b - ↑a) this hba1
+      _ = _ := by ring
+  have hbai2 : (↑b - ↑a) / i > 0
+  . exact div_pos hba1 hi2'
+  split_ands
+  . linarith
+  . linarith
+  . contrapose! hi
+    obtain ⟨ q, hq ⟩ := hi
+    use (b-a)/(q-a)
+    have hqa : (q:Real) - a ≠ 0 := by linarith
+    replace hq : (↑b - ↑a) / i = ↑q - a := by linarith
+    have goal : (↑b - ↑a) / (q - a) = i
+    . have hi : i ≠ 0 := by linarith
+      have : (↑b - ↑a) /i = (↑b - ↑a) * i⁻¹ := by ring
+      rw [this] at hq; clear this
+      replace hq : (↑b - ↑a) = (↑q - ↑a) * i
+      . symm
+        rw [← eq_mul_inv_iff_mul_eq₀ hi]
+        exact hq.symm
+      symm at hq
+      rw [← eq_inv_mul_iff_mul_eq₀ hqa] at hq
+      rw [hq]
+      ring
+    rw [← goal]
+    simp
 
 /- Use the notion of supremum in this section to define a Mathlib `sSup` operation -/
 noncomputable instance Real.inst_SupSet : SupSet Real where
