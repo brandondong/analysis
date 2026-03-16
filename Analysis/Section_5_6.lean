@@ -41,31 +41,87 @@ to be a `Field`), but the spirit of the exercises is to adapt the proofs of
 Proposition 4.3.10 that you previously established. -/
 
 /-- Analogue of Proposition 4.3.10(a) -/
-theorem Real.pow_add (x:Real) (m n:ℕ) : x^n * x^m = x^(n+m) := by sorry
+theorem Real.pow_add (x:Real) (m n:ℕ) : x^n * x^m = x^(n+m) := by
+  induction' m with m IH
+  . simp
+  calc
+    _ = x ^ n * (x ^ m * x) := by rw [pow_succ]
+    _ = (x ^ n * x ^ m) * x := by ring
+    _ = x ^ (n + m) * x := by rw [IH]
+    _ = x ^ (n + m + 1) := by rw [← pow_succ]
+    _ = _ := by ring
 
 /-- Analogue of Proposition 4.3.10(a) -/
-theorem Real.pow_mul (x:Real) (m n:ℕ) : (x^n)^m = x^(n*m) := by sorry
+theorem Real.pow_mul (x:Real) (m n:ℕ) : (x^n)^m = x^(n*m) := by
+  induction' m with m IH
+  . simp
+  calc
+    _ = (x ^ n) ^ (m) * (x ^ n) := by rw [pow_succ]
+    _ = (x ^ (n * m)) * (x ^ n) := by rw [IH]
+    _ = (x ^ (n * m + n)) := by rw [pow_add]
+    _ = _ := by ring
 
 /-- Analogue of Proposition 4.3.10(a) -/
-theorem Real.mul_pow (x y:Real) (n:ℕ) : (x*y)^n = x^n * y^n := by sorry
+theorem Real.mul_pow (x y:Real) (n:ℕ) : (x*y)^n = x^n * y^n := by
+  induction' n with n IH
+  . simp
+  calc
+    _ = (x * y) ^ n * (x * y) := by rw [pow_succ]
+    _ = (x ^ n * y ^ n) * (x * y) := by rw [IH]
+    _ = (x ^ n * x) * (y ^ n * y) := by ring
+    _ = _ := by rw [← pow_succ, ← pow_succ]
 
 /-- Analogue of Proposition 4.3.10(b) -/
-theorem Real.pow_eq_zero (x:Real) (n:ℕ) (hn : 0 < n) : x^n = 0 ↔ x = 0 := by sorry
+theorem Real.pow_eq_zero (x:Real) (n:ℕ) (hn : 0 < n) : x^n = 0 ↔ x = 0 := by
+  constructor <;> intro h
+  . contrapose! h
+    rw [← Nat.exists_add_one_eq] at hn
+    obtain ⟨ n, rfl ⟩ := hn
+    induction' n with n IH
+    . simp [h]
+    rw [pow_succ]
+    contrapose! IH
+    simp at IH
+    contradiction
+  . simp [h]
+    omega
 
 /-- Analogue of Proposition 4.3.10(c) -/
-theorem Real.pow_nonneg {x:Real} (n:ℕ) (hx: x ≥ 0) : x^n ≥ 0 := by sorry
+theorem Real.pow_nonneg {x:Real} (n:ℕ) (hx: x ≥ 0) : x^n ≥ 0 := by
+  induction' n with n IH
+  . simp
+  rw [pow_succ]
+  exact Left.mul_nonneg IH hx
 
 /-- Analogue of Proposition 4.3.10(c) -/
-theorem Real.pow_pos {x:Real} (n:ℕ) (hx: x > 0) : x^n > 0 := by sorry
+theorem Real.pow_pos {x:Real} (n:ℕ) (hx: x > 0) : x^n > 0 := by
+  induction' n with n IH
+  . simp
+  rw [pow_succ]
+  exact Left.mul_pos IH hx
 
 /-- Analogue of Proposition 4.3.10(c) -/
-theorem Real.pow_ge_pow (x y:Real) (n:ℕ) (hxy: x ≥ y) (hy: y ≥ 0) : x^n ≥ y^n := by sorry
+theorem Real.pow_ge_pow (x y:Real) (n:ℕ) (hxy: x ≥ y) (hy: y ≥ 0) : x^n ≥ y^n := by
+  induction' n with n IH
+  . simp
+  simp only [pow_succ]
+  have hx : x ≥ 0 := by linarith
+  gcongr
 
 /-- Analogue of Proposition 4.3.10(c) -/
-theorem Real.pow_gt_pow (x y:Real) (n:ℕ) (hxy: x > y) (hy: y ≥ 0) (hn: n > 0) : x^n > y^n := by sorry
+theorem Real.pow_gt_pow (x y:Real) (n:ℕ) (hxy: x > y) (hy: y ≥ 0) (hn: n > 0) : x^n > y^n := by
+  rw [gt_iff_lt, ← Nat.exists_add_one_eq] at hn
+  obtain ⟨ n, rfl ⟩ := hn
+  induction' n with n IH
+  . simp [hxy]
+  rw [pow_succ, pow_succ y _]
+  gcongr
 
 /-- Analogue of Proposition 4.3.10(d) -/
-theorem Real.pow_abs (x:Real) (n:ℕ) : |x|^n = |x^n| := by sorry
+theorem Real.pow_abs (x:Real) (n:ℕ) : |x|^n = |x^n| := by
+  induction' n with n IH
+  . simp
+  rw [pow_succ, pow_succ, IH, abs_mul]
 
 /-- Definition 5.6.2 (Exponentiating a real by an integer). Here we use the Mathlib definition coming from {name}`DivInvMonoid`. -/
 lemma Real.pow_eq_pow (x: Real) (n:ℕ): x ^ (n:ℤ) = x ^ n := by rfl
@@ -108,7 +164,10 @@ noncomputable abbrev Real.sqrt (x:Real) := x.root 2
 /-- Lemma 5.6.5 (Existence of n^th roots) -/
 theorem Real.rootset_nonempty {x:Real} (hx: x ≥ 0) (n:ℕ) (hn: n ≥ 1) : { y:Real | y ≥ 0 ∧ y^n ≤ x }.Nonempty := by
   use 0
-  sorry
+  simp
+  rw [ge_iff_le, le_iff_exists_add] at hn
+  obtain ⟨ n, rfl ⟩ := hn
+  simp [hx]
 
 theorem Real.rootset_bddAbove {x:Real} (n:ℕ) (hn: n ≥ 1) : BddAbove { y:Real | y ≥ 0 ∧ y^n ≤ x } := by
   -- This proof is written to follow the structure of the original text.
@@ -116,18 +175,117 @@ theorem Real.rootset_bddAbove {x:Real} (n:ℕ) (hn: n ≥ 1) : BddAbove { y:Real
   obtain h | h := le_or_gt x 1
   . use 1; intro y hy; simp at hy
     by_contra! hy'
-    replace hy' : 1 < y^n := by
-      sorry
+    replace hy' : 1 < y^n
+    . clear hy
+      rw [ge_iff_le, le_iff_exists_add] at hn
+      obtain ⟨ n, rfl ⟩ := hn
+      induction' n with n IH
+      . simp [hy']
+      have : y ^ (1 + (n + 1)) = y ^ (1 + (n)) * y := by ring
+      rw [this]; clear this
+      calc
+        _ < y ^ (1 + n) := IH
+        _ = y ^ (1 + n) * 1 := by ring
+        _ ≤ _ := by gcongr
     linarith
   use x; intro y hy; simp at hy
   by_contra! hy'
-  replace hy' : x < y^n := by
-    sorry
+  replace hy' : x < y^n
+  . clear hy
+    rw [ge_iff_le, le_iff_exists_add] at hn
+    obtain ⟨ n, rfl ⟩ := hn
+    induction' n with n IH
+    . simp [hy']
+    have : y ^ (1 + (n + 1)) = y ^ (1 + (n)) * y := by ring
+    rw [this]; clear this
+    calc
+        _ < y ^ (1 + n) := IH
+        _ = y ^ (1 + n) * 1 := by ring
+        _ ≤ _ := by {
+          have : 1 ≤ y := by linarith
+          gcongr
+        }
   linarith
+
+theorem root_LUB_helper {n:ℕ} {x: Real} (hx: x ≥ 0) (hn: n ≥ 1) : IsLUB {y | 0 ≤ y ∧ y ^ n ≤ x} (x.root n) := by
+  simp [Real.root]
+  apply ExtendedReal.sSup_of_bounded
+  . exact Real.rootset_nonempty hx n hn
+  . exact Real.rootset_bddAbove n hn
+
+theorem add_eps_pow_helper {x y:Real} (n:ℕ) (hx: x ≥ 0) (hy: y > 0) (h: y ^ n < x) : ∃ e:Real, e > 0 ∧ e < y ∧ (y + e) ^ n < x := by
+  revert x
+  induction' n with n IH
+  . intro x hx h
+    simp at h
+    use (y/2), (by linarith), (by linarith)
+    simp [h]
+  intro x hx h
+  simp [pow_succ] at h
+  have hxy0 : x/y ≥ 0 := by sorry
+  specialize IH hxy0 sorry
+  obtain ⟨ e, he1, he2, he3 ⟩ := IH
+  replace he3 : (y + e) ^ n * y < x := by exact (lt_div_iff₀ hy).mp he3
+  rw [lt_iff_exists_pos_add] at he3
+  obtain ⟨ c, hc1, hc2 ⟩ := he3
+  rw [← hc2]
+  -- (y + e') ^ (n + 1) = (y + e') ^ n * y + (y + e') ^ n * e'
+  -- < (y + e) ^ n * y + (2y) ^ n * e'
+  -- <= (y + e) ^ n * y + c
+  sorry
 
 /-- Lemma 5.6.6 (ab) / Exercise 5.6.1 -/
 theorem Real.eq_root_iff_pow_eq {x y:Real} (hx: x ≥ 0) (hy: y ≥ 0) {n:ℕ} (hn: n ≥ 1) :
-  y = x.root n ↔ y^n = x := by sorry
+  y = x.root n ↔ y^n = x := by
+  have hlb := root_LUB_helper hx hn
+  rw [isLUB_def] at hlb
+  obtain ⟨ h1, h2 ⟩ := hlb
+  constructor <;> intro h
+  . rw [← h] at h1 h2
+    clear h
+    by_contra hy2
+    obtain h | h | h := lt_trichotomy (y ^ n) x
+    . -- If y ^ n < x, then we've broken the upper bound assertion.
+      -- There must exist some small positive e such that (y + e) ^ n < x.
+      -- Prove this with induction.
+      contrapose! h1
+      rw [upperBound_def]
+      push_neg
+      -- y = 0 is some degenerate case...
+      rw [ge_iff_le, le_iff_eq_or_lt] at hy
+      obtain hy | hy := hy
+      . have : n ≠ 0 := by omega
+        simp [← hy, this] at h
+        sorry
+      sorry
+    . contradiction
+    . -- If y ^ n > x, then we need to show it's not the least upper bound...
+      sorry
+  . -- Need to prove least upper bound of {y'|y' ^ n <= x} = y.
+    -- We know y ^ n = x.
+    -- If y > y', then we've broken the upper bound assertion.
+    -- If y < y', then we've broken the least part of the assertion.
+    set y' := x.root n
+    by_contra hy'
+    obtain h3 | h3 | h3 := lt_trichotomy y y'
+    . contrapose! h2
+      use y
+      constructor
+      . rw [upperBound_def]
+        intro z hz
+        simp at hz
+        replace hz := hz.2
+        rw [← h] at hz
+        contrapose! hz
+        exact pow_gt_pow z y n hz hy hn
+      . exact h3
+    . contradiction
+    . contrapose! h1
+      rw [upperBound_def]
+      push_neg
+      use y
+      simp [hy, h3]
+      linarith
 
 /-- Lemma 5.6.6 (c) / Exercise 5.6.1 -/
 theorem Real.root_nonneg {x:Real} (hx: x ≥ 0) {n:ℕ} (hn: n ≥ 1) : x.root n ≥ 0 := by sorry
