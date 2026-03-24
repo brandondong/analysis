@@ -535,7 +535,7 @@ theorem mul_assoc : ∀ (a b c : Real), a * b * c = a * (b * c) := by
   intro n
   linarith
 
-theorem mul_comm : ∀ (a b : Real), a * b = b * a := by
+theorem mul_comm_helper : ∀ (a b : Real), a * b = b * a := by
   intro a b
   obtain ⟨ a, ha, rfl ⟩ := Real.eq_lim a
   obtain ⟨ b, hb, rfl ⟩ := Real.eq_lim b
@@ -569,7 +569,7 @@ theorem zero_mul : ∀ (a : Real), 0 * a = 0 := by
 noncomputable instance Real.instCommMonoid : CommMonoid Real where
   mul_comm := by {
     intro a b
-    exact mul_comm a b
+    exact mul_comm_helper a b
   }
   mul_assoc := by {
     intro a b c
@@ -581,7 +581,7 @@ noncomputable instance Real.instCommMonoid : CommMonoid Real where
   }
   mul_one := by {
     intro a
-    rw [mul_comm]
+    rw [mul_comm_helper]
     exact one_mul a
   }
 
