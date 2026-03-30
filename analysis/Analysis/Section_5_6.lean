@@ -132,29 +132,130 @@ lemma Real.zpow_zero (x: Real) : x ^ (0:ℤ) = 1 := by rfl
 lemma Real.zpow_neg {x:Real} (n:ℕ) : x^(-n:ℤ) = 1 / (x^n) := by simp
 
 /-- Analogue of Proposition 4.3.12(a) -/
-theorem Real.zpow_add (x:Real) (n m:ℤ) (hx: x ≠ 0): x^n * x^m = x^(n+m) := by sorry
+theorem Real.zpow_add (x:Real) (n m:ℤ) (hx: x ≠ 0): x^n * x^m = x^(n+m) := by
+  obtain ⟨ n, hn ⟩ := Int.eq_nat_or_neg n
+  obtain ⟨ m, hm ⟩ := Int.eq_nat_or_neg m
+  obtain rfl | rfl := hn <;> obtain rfl | rfl := hm
+  . norm_cast
+    exact pow_add x m n
+  . induction' m with m IH
+    . simp
+    rw [zpow_neg, pow_succ]
+    have : (1 / (x ^ m * x)) = (1 / (x ^ m) * x⁻¹) := by ring
+    rw [this, ← zpow_neg, ← mul_assoc, IH, ← zpow_sub_one₀]
+    . have : ((n:ℤ) + -↑m - 1) = (↑n + -↑(m + 1)) := by omega
+      rw [this]
+    exact hx
+  . induction' n with n IH
+    . simp
+    rw [zpow_neg, pow_succ]
+    have : 1 / (x ^ n * x) * x ^ (m:ℤ) = 1 / (x ^ n) * x ^ (m:ℤ) * x⁻¹ := by ring
+    rw [this, ← zpow_neg, IH, ← zpow_sub_one₀]
+    . have : (-n + (m:ℤ) - 1) = (-↑(n + 1) + ↑m) := by omega
+      rw [this]
+    exact hx
+  . rw [zpow_neg, zpow_neg]
+    have : -(n:ℤ) + -↑m = -((n + m):ℕ) := by omega
+    rw [this, zpow_neg, ← pow_add]
+    ring
 
 /-- Analogue of Proposition 4.3.12(a) -/
-theorem Real.zpow_mul (x:Real) (n m:ℤ) : (x^n)^m = x^(n*m) := by sorry
+theorem Real.zpow_mul (x:Real) (n m:ℤ) : (x^n)^m = x^(n*m) := by
+  obtain ⟨ n, hn ⟩ := Int.eq_nat_or_neg n
+  obtain ⟨ m, hm ⟩ := Int.eq_nat_or_neg m
+  obtain rfl | rfl := hn <;> obtain rfl | rfl := hm
+  . exact pow_mul _ _ _
+  . have : (↑n * -(m:ℤ)) = -((n * m):ℕ)
+    . simp
+    rw [zpow_neg, pow_eq_pow, this, zpow_neg, pow_mul]
+  . have : (-n * (m:ℤ)) = -((n * m):ℕ) := by simp
+    rw [zpow_neg, pow_eq_pow, this, zpow_neg]
+    ring
+  . have : (-n * -(m:ℤ)) = ((n * m):ℕ) := by simp
+    rw [zpow_neg, zpow_neg, this, pow_eq_pow]
+    simp
+    rw [pow_mul]
 
 /-- Analogue of Proposition 4.3.12(a) -/
-theorem Real.mul_zpow (x y:Real) (n:ℤ) : (x*y)^n = x^n * y^n := by sorry
+theorem Real.mul_zpow (x y:Real) (n:ℤ) : (x*y)^n = x^n * y^n := by
+  obtain ⟨ n, hn ⟩ := Int.eq_nat_or_neg n
+  obtain rfl | rfl := hn
+  . norm_cast
+    rw [mul_pow]
+  . rw [zpow_neg, zpow_neg, zpow_neg]
+    ring
 
 /-- Analogue of Proposition 4.3.12(b) -/
-theorem Real.zpow_pos {x:Real} (n:ℤ) (hx: x > 0) : x^n > 0 := by sorry
+theorem Real.zpow_pos {x:Real} (n:ℤ) (hx: x > 0) : x^n > 0 := by
+  obtain ⟨ n, hn ⟩ := Int.eq_nat_or_neg n
+  obtain rfl | rfl := hn
+  . norm_cast
+    exact pow_pos _ hx
+  . rw [zpow_neg]
+    have := pow_pos n hx
+    exact one_div_pos.mpr this
 
 /-- Analogue of Proposition 4.3.12(b) -/
-theorem Real.zpow_ge_zpow {x y:Real} {n:ℤ} (hxy: x ≥ y) (hy: y > 0) (hn: n > 0): x^n ≥ y^n := by sorry
+theorem Real.zpow_ge_zpow {x y:Real} {n:ℤ} (hxy: x ≥ y) (hy: y > 0) (hn: n > 0): x^n ≥ y^n := by
+  obtain ⟨ n, hn ⟩ := Int.eq_nat_or_neg n
+  obtain rfl | rfl := hn
+  . norm_cast
+    apply pow_ge_pow
+    . exact hxy
+    . linarith
+  . omega
 
 theorem Real.zpow_ge_zpow_ofneg {x y:Real} {n:ℤ} (hxy: x ≥ y) (hy: y > 0) (hn: n < 0) : x^n ≤ y^n := by
-  sorry
+  obtain ⟨ n, hn ⟩ := Int.eq_nat_or_neg n
+  obtain rfl | rfl := hn
+  . omega
+  . rw [zpow_neg, zpow_neg, le_div_iff₀, mul_comm, ← le_div_iff₀]
+    . simp
+      apply pow_ge_pow
+      . exact hxy
+      linarith
+    . simp
+      have hx : x > 0 := by linarith
+      exact pow_pos n hx
+    . exact pow_pos n hy
+
+theorem Real.pow_inj_helper {x y:Real} {n:ℕ} (hx: x > 0) (hy : y > 0) (hn: n ≠ 0) (hxy: x^n = y^n) : x = y := by
+  replace hn : 0 < n := by omega
+  obtain h | h | h := lt_trichotomy x y
+  . have : x ^ n < y ^ n
+    . apply pow_gt_pow
+      . exact h
+      . linarith
+      . exact hn
+    linarith
+  . exact h
+  . have : x ^ n > y ^ n
+    . apply pow_gt_pow
+      . exact h
+      . linarith
+      exact hn
+    linarith
 
 /-- Analogue of Proposition 4.3.12(c) -/
 theorem Real.zpow_inj {x y:Real} {n:ℤ} (hx: x > 0) (hy : y > 0) (hn: n ≠ 0) (hxy: x^n = y^n) : x = y := by
-  sorry
+  obtain ⟨ n, hn ⟩ := Int.eq_nat_or_neg n
+  obtain rfl | rfl := hn
+  . norm_cast at hxy hn
+    exact pow_inj_helper hx hy hn hxy
+  . rw [zpow_neg, zpow_neg] at hxy
+    simp at hxy
+    simp at hn
+    exact pow_inj_helper hx hy hn hxy
 
 /-- Analogue of Proposition 4.3.12(d) -/
-theorem Real.zpow_abs (x:Real) (n:ℤ) : |x|^n = |x^n| := by sorry
+theorem Real.zpow_abs (x:Real) (n:ℤ) : |x|^n = |x^n| := by
+  obtain ⟨ n, hn ⟩ := Int.eq_nat_or_neg n
+  obtain rfl | rfl := hn
+  . exact pow_abs _ _
+  . rw [zpow_neg, zpow_neg]
+    have h := pow_abs x n
+    rw [h]
+    simp only [one_div, abs_inv]
 
 /-- Definition 5.6.2.  We permit ``junk values'' when `x` is negative or `n` vanishes. -/
 noncomputable abbrev Real.root (x:Real) (n:ℕ) : Real := sSup { y:Real | y ≥ 0 ∧ y^n ≤ x }
@@ -854,11 +955,143 @@ theorem Real.ratPow_mono {x y:Real} (hx: x > 0) (hy: y > 0) {q:ℚ} (h: q > 0) :
 
 /-- Lemma 5.6.9(e) / Exercise 5.6.2 -/
 theorem Real.ratPow_mono_of_gt_one {x:Real} (hx: x > 1) {q r:ℚ} : x^q > x^r ↔ q > r := by
-  sorry
+  obtain ⟨ a, b, hb, rfl ⟩ := Rat.eq_quot q
+  obtain ⟨ c, d, hd, rfl ⟩ := Rat.eq_quot r
+  have hx2 : x > 0 := by linarith
+  have hx3 : x ≥ 0 := by linarith
+  have hbd : b * d ≥ 1 := by exact Right.one_le_mul hb hd
+  rw [ratPow_def, ratPow_def]
+  . have h1 : x.root b ^ a = x.root (b*d) ^ (a*d)
+    . rw [mul_comm a d, ← zpow_mul]
+      suffices h : x.root b = (x.root (b * d) ^ ↑d)
+      . simp [h]
+      rw [← root_root]
+      . symm
+        apply pow_of_root
+        . exact root_nonneg hx3 (by omega)
+        omega
+      . exact hx3
+      . omega
+      exact hd
+    have h2 : x.root d ^ c = x.root (b*d) ^ (c*b)
+    . have : x.root (b * d) ^ (c * ↑b) = (x.root (b * d) ^ b) ^ c
+      . rw [mul_comm c b, ← zpow_mul]
+        simp
+      rw [this]
+      suffices h : x.root d = (x.root (b * d) ^ b)
+      . rw [h]
+      symm
+      rw [eq_root_iff_pow_eq]
+      . rw [pow_mul]
+        apply pow_of_root
+        . exact hx3
+        exact hbd
+      . exact hx3
+      . have : x.root (b * d) ≥ 0 := by exact root_nonneg hx3 hbd
+        exact pow_nonneg b this
+      omega
+    rw [h1, h2]
+    set x' := x.root (b*d)
+    have hx' : x' > 1
+    . unfold x'
+      have : 1 = (1:Real).root (b*d)
+      . symm
+        apply root_of_one
+        exact hbd
+      rw [this, ← root_mono]
+      . exact hx
+      . exact hx3
+      . norm_num
+      . exact hbd
+    norm_cast
+    constructor <;> intro h
+    . contrapose! h
+      rw [Rat.divInt_le_divInt] at h
+      . exact (zpow_le_zpow_iff_right₀ hx').mpr h
+      . omega
+      . omega
+    . contrapose! h
+      rw [Rat.divInt_le_divInt]
+      . rwa [← zpow_le_zpow_iff_right₀ hx']
+      . omega
+      . omega
+  . exact hx2
+  . exact hd
+  . exact hx2
+  . exact hb
 
 /-- Lemma 5.6.9(e) / Exercise 5.6.2 -/
 theorem Real.ratPow_mono_of_lt_one {x:Real} (hx0: 0 < x) (hx: x < 1) {q r:ℚ} : x^q > x^r ↔ q < r := by
-  sorry
+  obtain ⟨ a, b, hb, rfl ⟩ := Rat.eq_quot q
+  obtain ⟨ c, d, hd, rfl ⟩ := Rat.eq_quot r
+  have hx2 : x > 0 := by linarith
+  have hx3 : x ≥ 0 := by linarith
+  have hbd : b * d ≥ 1 := by exact Right.one_le_mul hb hd
+  rw [ratPow_def, ratPow_def]
+  . have h1 : x.root b ^ a = x.root (b*d) ^ (a*d)
+    . rw [mul_comm a d, ← zpow_mul]
+      suffices h : x.root b = (x.root (b * d) ^ ↑d)
+      . simp [h]
+      rw [← root_root]
+      . symm
+        apply pow_of_root
+        . exact root_nonneg hx3 (by omega)
+        omega
+      . exact hx3
+      . omega
+      exact hd
+    have h2 : x.root d ^ c = x.root (b*d) ^ (c*b)
+    . have : x.root (b * d) ^ (c * ↑b) = (x.root (b * d) ^ b) ^ c
+      . rw [mul_comm c b, ← zpow_mul]
+        simp
+      rw [this]
+      suffices h : x.root d = (x.root (b * d) ^ b)
+      . rw [h]
+      symm
+      rw [eq_root_iff_pow_eq]
+      . rw [pow_mul]
+        apply pow_of_root
+        . exact hx3
+        exact hbd
+      . exact hx3
+      . have : x.root (b * d) ≥ 0 := by exact root_nonneg hx3 hbd
+        exact pow_nonneg b this
+      omega
+    rw [h1, h2]
+    set x' := x.root (b*d)
+    have hx' : x' < 1
+    . unfold x'
+      have : 1 = (1:Real).root (b*d)
+      . symm
+        apply root_of_one
+        exact hbd
+      rw [this, ← gt_iff_lt, ← root_mono]
+      . exact hx
+      . norm_num
+      . exact hx3
+      . exact hbd
+    have hx'2 : x' > 0
+    . unfold x'
+      rw [root_pos]
+      . exact hx0
+      . exact hx3
+      exact hbd
+    norm_cast
+    constructor <;> intro h
+    . contrapose! h
+      rw [Rat.divInt_le_divInt] at h
+      . exact (zpow_le_zpow_iff_right_of_lt_one₀ hx'2 hx').mpr h
+      . omega
+      . omega
+    . contrapose! h
+      rw [Rat.divInt_le_divInt]
+      . rwa [← zpow_le_zpow_iff_right_of_lt_one₀ hx'2 hx']
+      . omega
+      . omega
+  . exact hx2
+  . exact hd
+  . exact hx2
+  . exact hb
 
 /-- Lemma 5.6.9(f) / Exercise 5.6.2 -/
 theorem Real.ratPow_mul {x y:Real} (hx: x > 0) (hy: y > 0) (q:ℚ) : (x*y)^q = x^q * y^q := by
