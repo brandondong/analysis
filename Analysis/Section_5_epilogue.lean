@@ -40,13 +40,40 @@ theorem isLowerSet_iff (E: Set ℚ) : IsLowerSet E ↔ ∀ q r, r < q → q ∈ 
 
 abbrev Real.toSet_Rat (x:Real) : Set ℚ := { q | (q:Real) < x }
 
-lemma Real.toSet_Rat_nonempty (x:Real) : x.toSet_Rat.Nonempty := by sorry
+lemma Real.toSet_Rat_nonempty (x:Real) : x.toSet_Rat.Nonempty := by
+  have : x-1 < x := by linarith
+  obtain ⟨ q, _, hq ⟩ := Real.rat_between this
+  use q
+  simp [Real.toSet_Rat, hq]
 
-lemma Real.toSet_Rat_bounded (x:Real) : BddAbove x.toSet_Rat := by sorry
+lemma Real.toSet_Rat_bounded (x:Real) : BddAbove x.toSet_Rat := by
+  unfold BddAbove
+  unfold upperBounds
+  have : x < x+1 := by linarith
+  obtain ⟨ q, _, hq ⟩ := Real.rat_between this
+  use q
+  simp
+  intro a ha
+  have : a ≤ (q:Real) := by linarith
+  simp at this
+  exact this
 
-lemma Real.toSet_Rat_lower (x:Real) : IsLowerSet x.toSet_Rat := by sorry
+lemma Real.toSet_Rat_lower (x:Real) : IsLowerSet x.toSet_Rat := by
+  rw [isLowerSet_iff]
+  intro q r hrq hq
+  simp [toSet_Rat] at hq ⊢
+  have : (r:Real) < q := by simp [hrq]
+  linarith
 
-lemma Real.toSet_Rat_nomax {x:Real} : ∀ q ∈ x.toSet_Rat, ∃ r ∈ x.toSet_Rat, r > q := by sorry
+lemma Real.toSet_Rat_nomax {x:Real} : ∀ q ∈ x.toSet_Rat, ∃ r ∈ x.toSet_Rat, r > q := by
+  intro q hq
+  simp at hq ⊢
+  obtain ⟨ q', hq'1, hq'2 ⟩ :=  Real.rat_between hq
+  use q'
+  constructor
+  . exact hq'2
+  . simp at hq'1
+    exact hq'1
 
 abbrev Real.toCut (x:Real) : DedekindCut :=
  {
@@ -59,9 +86,20 @@ abbrev Real.toCut (x:Real) : DedekindCut :=
 
 abbrev DedekindCut.toSet_Real (c: DedekindCut) : Set Real := (fun (q:ℚ) ↦ (q:Real)) '' c.E
 
-lemma DedekindCut.toSet_Real_nonempty (c: DedekindCut) : c.toSet_Real.Nonempty := by sorry
+lemma DedekindCut.toSet_Real_nonempty (c: DedekindCut) : c.toSet_Real.Nonempty := by
+  simp
+  exact c.nonempty
 
-lemma DedekindCut.toSet_Real_bounded (c: DedekindCut) : BddAbove c.toSet_Real := by sorry
+lemma DedekindCut.toSet_Real_bounded (c: DedekindCut) : BddAbove c.toSet_Real := by
+  have hb := c.bounded
+  unfold BddAbove at hb ⊢
+  simp [toSet_Real, Set.Nonempty]
+  obtain ⟨ q, hq ⟩ := hb
+  use q
+  simp [upperBounds] at hq ⊢
+  intro q' hq'
+  apply hq
+  exact hq'
 
 noncomputable abbrev DedekindCut.toReal (c: DedekindCut) : Real := sSup c.toSet_Real
 
@@ -72,9 +110,55 @@ noncomputable abbrev Real.equivCut : Real ≃ DedekindCut where
   toFun := toCut
   invFun := DedekindCut.toReal
   left_inv x := by
-    sorry
+    -- With a real x, we're creating a set of rationals < x, then taking LUB of casted set.
+    -- LUB cannot be > x as x is a smaller upper bound.
+    -- LUB cannot be < x as then we could consider the midpoint which is not under that bound.
+    have hlub := DedekindCut.toReal_isLUB (x.toCut)
+    rw [Real.isLUB_def] at hlub
+    obtain ⟨ hx1, hx2 ⟩ := hlub
+    obtain h | h | h := lt_trichotomy x.toCut.toReal x
+    . contrapose! hx1; clear hx1 hx2
+      simp [upperBounds]
+      set x' := x.toCut.toReal
+      obtain ⟨ q, hq1, hq2 ⟩ := Real.rat_between h
+      use q
+    . exact h
+    . contrapose! hx2; clear hx2 hx1
+      use x
+      constructor
+      . simp [upperBounds]
+        intro q hq
+        linarith
+      . exact h
   right_inv c := by
-    sorry
+    ext q
+    have hlub := DedekindCut.toReal_isLUB c
+    rw [Real.isLUB_def] at hlub
+    obtain ⟨ hr1, hr2 ⟩ := hlub
+    constructor <;> intro h
+    . -- q is in {q' < LUB c} or q < LUB c. Need to prove q is in c.
+      simp at h
+      -- Assume to the contrary that q is not in c.
+      -- Then it would be a new LUB, forming the contradiction.
+      contrapose! hr2
+      use q
+      constructor
+      . simp [upperBounds]
+        intro a ha
+        contrapose! hr2
+        have hm := c.lower
+        rw [isLowerSet_iff] at hm
+        exact hm a q hr2 ha
+      . exact h
+    . -- q is in c. Need to prove q < LUB c.
+      simp
+      simp [upperBounds] at hr1
+      -- q is definitely <= LUB c from bounded property.
+      obtain ⟨ q', hq'1, hq'2 ⟩ := c.nomax q h
+      specialize hr1 q' hq'1
+      have : (q:Real) < q'
+      . simp [hq'2]
+      linarith
 
 end Chapter5
 
@@ -82,13 +166,38 @@ end Chapter5
 
 abbrev Real.toSet_Rat (x:ℝ) : Set ℚ := { q | (q:ℝ) < x }
 
-lemma Real.toSet_Rat_nonempty (x:ℝ) : x.toSet_Rat.Nonempty := by sorry
+lemma Real.toSet_Rat_nonempty (x:ℝ) : x.toSet_Rat.Nonempty := by
+  obtain ⟨ q, hq ⟩ := exists_rat_lt x
+  use q
+  simp [hq]
 
-lemma Real.toSet_Rat_bounded (x:ℝ) : BddAbove x.toSet_Rat := by sorry
+lemma Real.toSet_Rat_bounded (x:ℝ) : BddAbove x.toSet_Rat := by
+  simp [BddAbove, upperBounds]
+  obtain ⟨ q, hq ⟩ := exists_rat_gt x
+  use q
+  simp
+  intro a ha
+  have : a ≤ (q:ℝ) := by linarith
+  simp at this
+  exact this
 
-lemma Real.toSet_Rat_lower (x:ℝ) : IsLowerSet x.toSet_Rat := by sorry
+lemma Real.toSet_Rat_lower (x:ℝ) : IsLowerSet x.toSet_Rat := by
+  unfold IsLowerSet
+  intro a b h ha
+  simp at ha ⊢
+  replace h : b ≤ (a:ℝ)
+  . simp [h]
+  linarith
 
-lemma Real.toSet_Rat_nomax (x:ℝ) : ∀ q ∈ x.toSet_Rat, ∃ r ∈ x.toSet_Rat, r > q := by sorry
+lemma Real.toSet_Rat_nomax (x:ℝ) : ∀ q ∈ x.toSet_Rat, ∃ r ∈ x.toSet_Rat, r > q := by
+  intro q hq
+  simp at hq ⊢
+  obtain ⟨ r, hr1, hr2 ⟩ := exists_rat_btwn hq
+  use r
+  constructor
+  . exact hr2
+  . simp at hr1
+    exact hr1
 
 abbrev Real.toCut (x:ℝ) : Chapter5.DedekindCut :=
  {
@@ -103,9 +212,18 @@ namespace Chapter5
 
 abbrev DedekindCut.toSet_R (c: DedekindCut) : Set ℝ := (fun (q:ℚ) ↦ (q:ℝ)) '' c.E
 
-lemma DedekindCut.toSet_R_nonempty (c: DedekindCut) : c.toSet_R.Nonempty := by sorry
+lemma DedekindCut.toSet_R_nonempty (c: DedekindCut) : c.toSet_R.Nonempty := by
+  simp
+  exact c.nonempty
 
-lemma DedekindCut.toSet_R_bounded (c: DedekindCut) : BddAbove c.toSet_R := by sorry
+lemma DedekindCut.toSet_R_bounded (c: DedekindCut) : BddAbove c.toSet_R := by
+  have hb := c.bounded
+  simp [BddAbove] at *
+  obtain ⟨ q, hq ⟩ := hb
+  use q
+  simp [upperBounds] at *
+  intro a ha
+  exact hq ha
 
 noncomputable abbrev DedekindCut.toR (c: DedekindCut) : ℝ := sSup c.toSet_R
 
@@ -118,9 +236,56 @@ noncomputable abbrev Real.equivCut : ℝ ≃ Chapter5.DedekindCut where
   toFun := _root_.Real.toCut
   invFun := Chapter5.DedekindCut.toR
   left_inv x := by
-    sorry
+    -- With a real x, we're creating a set of rationals < x, then taking LUB of casted set.
+    -- LUB cannot be > x as x is a smaller upper bound.
+    -- LUB cannot be < x as then we could consider the midpoint which is not under that bound.
+    have hlub := Chapter5.DedekindCut.toR_isLUB (x.toCut)
+    rw [isLUB_iff_le_iff] at hlub
+    obtain h | h | h := lt_trichotomy x.toCut.toR x
+    . specialize hlub x.toCut.toR
+      simp at hlub
+      contrapose! hlub; clear hlub
+      simp [upperBounds]
+      set x' := x.toCut.toR
+      obtain ⟨ q, hq1, hq2 ⟩ := exists_rat_btwn h
+      use q
+    . exact h
+    . specialize hlub x
+      replace h : ¬ x.toCut.toR ≤ x := by linarith
+      simp [h] at hlub
+      contrapose! hlub; clear hlub
+      simp [upperBounds]
+      intro q hq
+      linarith
   right_inv c := by
-    sorry
+    ext q
+    have hlub := Chapter5.DedekindCut.toR_isLUB c
+    rw [isLUB_iff_le_iff] at hlub
+    constructor <;> intro h
+    . -- q is in {q' < LUB c} or q < LUB c. Need to prove q is in c.
+      simp at h
+      -- Assume to the contrary that q is not in c.
+      -- Then it would be a new LUB, forming the contradiction.
+      replace h : ¬ c.toR ≤ ↑q := by linarith
+      specialize hlub q
+      simp [h] at hlub
+      contrapose! hlub
+      simp [upperBounds]
+      intro a ha
+      contrapose! hlub
+      have hm := c.lower
+      rw [Chapter5.isLowerSet_iff] at hm
+      exact hm a q hlub ha
+    . -- q is in c. Need to prove q < LUB c.
+      simp
+      specialize hlub c.toR
+      simp [upperBounds] at hlub
+      -- q is definitely <= LUB c from bounded property.
+      obtain ⟨ q', hq'1, hq'2 ⟩ := c.nomax q h
+      specialize hlub q' hq'1
+      have : (q:Real) < q'
+      . simp [hq'2]
+      linarith
 
 namespace Chapter5
 
@@ -136,7 +301,10 @@ lemma Real.equivR_iff (x : Real) (y : ℝ) : y = Real.equivR x ↔ y.toCut = x.t
 
 -- We start by showing it works for ratCasts
 theorem Real.equivR_ratCast {q: ℚ} : equivR q = (q: ℝ) := by
-  sorry
+  symm
+  rw [equivR_iff]
+  ext r
+  simp
 
 lemma Real.equivR_nat {n: ℕ} : equivR n = (n: ℝ) := equivR_ratCast
 lemma Real.equivR_int {n: ℤ} : equivR n = (n: ℝ) := equivR_ratCast
@@ -148,7 +316,16 @@ lemma Real.equivR_int {n: ℤ} : equivR n = (n: ℝ) := equivR_ratCast
 
 -- Convertion between the notions of Cauchy Sequences
 theorem Sequence.IsCauchy.to_IsCauSeq {a: ℕ → ℚ} (ha: IsCauchy a) : IsCauSeq _root_.abs a := by
-  sorry
+  rw [Sequence.IsCauchy.coe] at ha
+  unfold IsCauSeq
+  unfold Section_4_3.dist at ha
+  intro e he
+  specialize ha (e/2) (by linarith)
+  obtain ⟨ N, hN ⟩ := ha
+  use N
+  intro j hj
+  specialize hN j hj N (by omega)
+  linarith
 
 -- Convertion of an `IsCauchy` to a `CauSeq`
 abbrev Sequence.IsCauchy.CauSeq {a: ℕ → ℚ} : (ha: IsCauchy a) → CauSeq ℚ _root_.abs :=
@@ -160,7 +337,16 @@ example {a b: CauSeq ℚ abs} : a ≈ b ↔ CauSeq.LimZero (a - b) := by rfl
 
 theorem Sequence.Equiv.LimZero {a b: ℕ → ℚ} (ha: IsCauchy a) (hb: IsCauchy b) (h:Equiv a b)
   : CauSeq.LimZero (ha.CauSeq - hb.CauSeq) := by
-    sorry
+  rw [Sequence.equiv_iff] at h
+  unfold CauSeq.LimZero
+  simp
+  intro e he
+  specialize h (e/2) (by linarith)
+  obtain ⟨ N, hN ⟩ := h
+  use N
+  intro j hj
+  specialize hN j hj
+  linarith
 
 -- We can now use it to convert between different functions in Real.mk
 theorem Real.mk_eq_mk {a b: ℕ → ℚ} (ha : Sequence.IsCauchy a) (hb : Sequence.IsCauchy b) (hab: Sequence.Equiv a b)
