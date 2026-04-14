@@ -356,7 +356,17 @@ theorem Real.mk_eq_mk {a b: ℕ → ℚ} (ha : Sequence.IsCauchy a) (hb : Sequen
 theorem Sequence.Equiv_iff_LimZero {a b: ℕ → ℚ} (ha: IsCauchy a) (hb: IsCauchy b)
   : Equiv a b ↔ CauSeq.LimZero (ha.CauSeq - hb.CauSeq) := by
     refine ⟨(·.LimZero ha hb), ?_⟩
-    sorry
+    intro h
+    rw [Sequence.equiv_iff]
+    unfold CauSeq.LimZero at h
+    simp at h
+    intro e he
+    specialize h e he
+    obtain ⟨ N, hN ⟩ := h
+    use N
+    intro n hn
+    specialize hN n hn
+    linarith
 
 ----
 -- We create some cauchy sequences with useful properties
@@ -365,6 +375,26 @@ theorem Sequence.Equiv_iff_LimZero {a b: ℕ → ℚ} (ha: IsCauchy a) (hb: IsCa
 open Real in
 theorem Sequence.difference_approaches_zero {a: ℕ → ℚ} (ha: Sequence.IsCauchy a) :
   ∀ε > 0, ∃N, ∀n ≥ N, |LIM a - a n| ≤ (ε: ℚ) := by
+  have ha2 := ha
+  rw [Sequence.IsCauchy.coe] at ha2
+  unfold Section_4_3.dist at ha2
+  intro e he
+  set N := 1
+  use N
+  intro n hn
+  rw [ratCast_def, ratCast_def, Real.LIM_sub ha (Sequence.IsCauchy.const _)]
+  rw [Real.LIM_abs sorry, le_iff]
+  left
+  rw [← gt_iff_lt, Real.gt_iff, Real.LIM_sub (Sequence.IsCauchy.const _) sorry, Real.isPos_def]
+  use SwapFirst (fun x ↦ e - |a x - a n|) N 1
+  split_ands
+  . apply SwapFirst_bounded_away_pos
+    sorry
+  . apply SwapFirst_cauchy
+    sorry
+  . rw [SwapFirst_lim_eq]
+    . apply LIM_eq_fun_eq
+      simp [funext_iff]
     sorry
 
 -- There exists a Cauchy sequence entirely above the LIM
