@@ -379,33 +379,150 @@ theorem Sequence.difference_approaches_zero {a: ℕ → ℚ} (ha: Sequence.IsCau
   rw [Sequence.IsCauchy.coe] at ha2
   unfold Section_4_3.dist at ha2
   intro e he
-  set N := 1
+  specialize ha2 (e/32) (by linarith)
+  obtain ⟨ N, hN ⟩ := ha2
   use N
   intro n hn
+  have h4 : ((a - (fun (x:ℕ)  ↦ a n)):Sequence).IsCauchy
+  . apply Sequence.IsCauchy.sub
+    . exact ha
+    . exact (Sequence.IsCauchy.const _)
   rw [ratCast_def, ratCast_def, Real.LIM_sub ha (Sequence.IsCauchy.const _)]
-  rw [Real.LIM_abs sorry, le_iff]
+  rw [Real.LIM_abs h4, le_iff]
   left
-  rw [← gt_iff_lt, Real.gt_iff, Real.LIM_sub (Sequence.IsCauchy.const _) sorry, Real.isPos_def]
-  use SwapFirst (fun x ↦ e - |a x - a n|) N 1
+  rw [← gt_iff_lt, Real.gt_iff, Real.LIM_sub (Sequence.IsCauchy.const _) (Sequence.IsCauchy.abs h4), Real.isPos_def]
+  use SwapFirst (fun x ↦ e - |a x - a n|) N e
+  have h5 : ((fun x ↦ e - |a x - a n|):Sequence).IsCauchy
+  . apply Sequence.IsCauchy.sub
+    . exact (Sequence.IsCauchy.const _)
+    . apply Sequence.IsCauchy.abs
+      exact h4
   split_ands
   . apply SwapFirst_bounded_away_pos
-    sorry
+    use e/32, (by linarith)
+    constructor
+    . intro m hm
+      specialize hN m hm n hn
+      linarith
+    . linarith
   . apply SwapFirst_cauchy
-    sorry
+    exact h5
   . rw [SwapFirst_lim_eq]
     . apply LIM_eq_fun_eq
       simp [funext_iff]
-    sorry
+    exact h5
+
+theorem below_rev_helper {q:ℚ} {r:Real} (h: q < r) : ∃ s:ℚ, s ≥ r ∧ s-r ≤ r-q := by
+  have h2 : r-q+r > r := by linarith
+  obtain ⟨ s, hs1, hs2 ⟩ := Real.rat_between h2
+  use s, (by linarith)
+  linarith
+
+theorem Sequence.IsCauchy.equiv {a b: ℕ → ℚ} (ha: Sequence.IsCauchy a) (h: Sequence.Equiv a b) : Sequence.IsCauchy b := by
+  rw [Sequence.IsCauchy.coe] at *
+  rw [Sequence.equiv_iff] at h
+  unfold Section_4_3.dist at *
+  intro e he
+  specialize h (e/32) (by linarith)
+  specialize ha (e/32) (by linarith)
+  obtain ⟨ N1, hN1 ⟩ := h
+  obtain ⟨ N2, hN2 ⟩ := ha
+  use (N1+N2)
+  intro j hj k hk
+  specialize hN2 j (by omega) k (by omega)
+  have hj2 := hN1 j (by omega)
+  have hk2 := hN1 k (by omega)
+  rw [abs_le] at *
+  constructor <;> linarith
 
 -- There exists a Cauchy sequence entirely above the LIM
 theorem Real.exists_equiv_above {a: ℕ → ℚ} (ha: Sequence.IsCauchy a)
   : ∃(b: ℕ → ℚ), Sequence.IsCauchy b ∧ Sequence.Equiv a b ∧ ∀n, LIM a ≤ b n := by
-    sorry
+  -- For each a n that is < LIM, we can find q that is >= LIM and closer.
+  set b:= fun x ↦ if h: a x < LIM a then
+    (below_rev_helper h).choose
+    else a x
+  -- Get this into a workable form without the choose.
+  have hb (n:ℕ) : (a n ≥ LIM a ∧ a n = b n) ∨ (a n < LIM a ∧ b n ≥ LIM a ∧ b n-LIM a ≤ LIM a-a n)
+  . by_cases h : (a n) < LIM a
+    . right
+      use h
+      unfold b
+      simp only [h, ↓reduceDIte]
+      set c := below_rev_helper (of_eq_true (eq_true h))
+      have hc := c.choose_spec
+      exact hc
+    . left
+      constructor
+      . linarith
+      . unfold b
+        simp [h]
+  use b
+  have hbe : Sequence.Equiv a b
+  . have ha2 := Sequence.difference_approaches_zero ha
+    rw [Sequence.equiv_iff]
+    intro e he
+    -- a n can be made arbitrarily close to LIM a and so can b n.
+    specialize ha2 (e/32) (by linarith)
+    obtain ⟨ N, hN ⟩ := ha2
+    use N
+    intro n hn
+    specialize hN n hn
+    specialize hb n
+    obtain ⟨ _, hb ⟩ | hb := hb
+    . simp [hb]
+      linarith
+    . set c := a n
+      set d := b n
+      rw [abs_of_nonneg (by linarith)] at hN
+      simp at hN
+      rw [abs_sub_comm, abs_of_nonneg]
+      . suffices h : d - c ≤ (e:Real)
+        . norm_cast at h
+        linarith
+      . suffices h : 0 ≤ d - (c:Real)
+        . norm_cast at h
+        linarith
+  split_ands
+  . exact Sequence.IsCauchy.equiv ha hbe
+  . exact hbe
+  . intro n
+    specialize hb n
+    obtain ⟨ hb1, hb2 ⟩ | hb := hb
+    . rw [← hb2]
+      exact hb1
+    . exact hb.2.1
+
+theorem Sequence.equiv_neg_comm {a b: ℕ → ℚ} (h: Sequence.Equiv (-a) b) : Sequence.Equiv a (-b) := by
+  rw [Sequence.equiv_iff] at *
+  intro e he
+  specialize h e he
+  obtain ⟨ N, hN ⟩ := h
+  use N
+  intro n hn
+  specialize hN n hn
+  simp at hN ⊢
+  have : -a n - b n = -(a n + b n) := by ring
+  rwa [this, _root_.abs_neg] at hN
 
 -- There exists a Cauchy sequence entirely below the LIM
 theorem Real.exists_equiv_below {a: ℕ → ℚ} (ha: Sequence.IsCauchy a)
   : ∃(b: ℕ → ℚ), Sequence.IsCauchy b ∧ Sequence.Equiv a b ∧ ∀n, b n ≤ LIM a := by
-    sorry
+  -- Consider the sequence -a. There exists a sequence b above.
+  -- -b is below a.
+  have ha' := Sequence.IsCauchy.neg a ha
+  obtain ⟨ b, hb1, hb2, hb3 ⟩ := Real.exists_equiv_above ha'
+  use -b
+  split_ands
+  . apply Sequence.IsCauchy.neg
+    exact hb1
+  . exact Sequence.equiv_neg_comm hb2
+  . intro n
+    specialize hb3 n
+    simp
+    rw [← Real.neg_LIM] at hb3
+    . linarith
+    . exact ha
 
 ----
 
@@ -419,7 +536,12 @@ theorem Real.exists_equiv_below {a: ℕ → ℚ} (ha: Sequence.IsCauchy a)
 theorem Real.equivR_eq' {a: ℕ → ℚ} (ha: Sequence.IsCauchy a)
   : (LIM a).equivR = Real.mk ha.CauSeq := by
     by_cases hq: ∃(q: ℚ), q = LIM a
-    · sorry
+    · obtain ⟨ q, hq ⟩ := hq
+      symm
+      rw [Real.equivR_iff]
+      ext r
+      simp [← hq]
+      sorry
     show sSup (Rat.cast '' (LIM a).toSet_Rat) = _
     refine IsLUB.csSup_eq ⟨?_, ?_⟩ (Set.Nonempty.image _ <| Real.toSet_Rat_nonempty _)
     · -- show that `Real.mk ha.CauSeq` is an upper bound
