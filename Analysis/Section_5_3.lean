@@ -518,7 +518,7 @@ noncomputable instance Real.instAddCommGroup : AddCommGroup Real where
     linarith
   }
 
-theorem mul_assoc : ∀ (a b c : Real), a * b * c = a * (b * c) := by
+theorem mul_assoc_helper : ∀ (a b c : Real), a * b * c = a * (b * c) := by
   intro a b c
   obtain ⟨ a, ha, rfl ⟩ := Real.eq_lim a
   obtain ⟨ b, hb, rfl ⟩ := Real.eq_lim b
@@ -573,7 +573,7 @@ noncomputable instance Real.instCommMonoid : CommMonoid Real where
   }
   mul_assoc := by {
     intro a b c
-    exact mul_assoc a b c
+    exact mul_assoc_helper a b c
   }
   one_mul := by {
     intro a
@@ -676,10 +676,60 @@ theorem bounded_away_zero_def (a:ℕ → ℚ) : BoundedAwayZero a ↔
 example : BoundedAwayZero (fun n ↦ (-1)^n) := by use 1; simp
 
 /-- Examples 5.3.13 -/
-example : ¬ BoundedAwayZero (fun n ↦ 10^(-(n:ℤ)-1)) := by sorry
+example : ¬ BoundedAwayZero (fun n ↦ 10^(-(n:ℤ)-1)) := by
+  rw [bounded_away_zero_def]
+  push_neg
+  intro c hc
+  use c.den
+  have h10 : 10 > (0:ℚ) := by norm_num
+  have h10ne : 10 ≠ (0:ℚ) := by norm_num
+  rw [abs_of_nonneg]
+  . have : c = c.num / c.den := by exact (Rat.num_div_den c).symm
+    nth_rewrite 2 [this]; clear this
+    rw [lt_div_iff₀]
+    . rw [mul_comm]
+      have : -(c.den:ℤ) - 1 = -(c.den + 1) := by ring
+      rw [this, zpow_neg]; clear this
+      rw [← lt_div_iff₀]
+      . simp
+        norm_cast
+        simp [pow_succ]
+        rw [mul_comm, mul_assoc]
+        have h1 : (c.den:ℤ) < 10 ^ c.den
+        . norm_cast
+          induction' c.den with n IH
+          . simp
+          rw [pow_succ]
+          calc
+            n + 1 ≤ 10 ^ n * 1 := by omega
+            _ < _ := by {
+              rw [mul_lt_mul_left]
+              . norm_num
+              . omega
+            }
+        have h2 : 1 < (10 * c.num)
+        . have h : c.num ≥ 1 := by exact Rat.num_pos.mpr hc
+          calc
+            (1:ℤ) < 10 * 1 := by norm_num
+            _ ≤ _ := by gcongr
+        have h3 : c.den = c.den * (1:ℤ) := by ring
+        rw [h3]
+        gcongr
+      . simp
+        exact zpow_pos h10 (↑c.den + 1)
+    . norm_cast
+      exact Rat.den_pos c
+  . have := zpow_pos h10 (-c.den - 1)
+    linarith
 
 /-- Examples 5.3.13 -/
-example : ¬ BoundedAwayZero (fun n ↦ 1 - 10^(-(n:ℤ))) := by sorry
+example : ¬ BoundedAwayZero (fun n ↦ 1 - 10^(-(n:ℤ))) := by
+  rw [bounded_away_zero_def]
+  push_neg
+  intro c hc
+  use 0
+  simp
+  exact hc
 
 /-- Examples 5.3.13 -/
 example : BoundedAwayZero (fun n ↦ 10^(n+1)) := by
