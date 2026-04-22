@@ -743,10 +743,39 @@ theorem bounded_away_zero_const {q:ℚ} (hq : q > 0) : BoundedAwayZero fun _ ↦
   intro _
   simp [le_abs]
 
-theorem Sequence.IsCauchy.const_inv (a : ℚ) : (↑(fun x:ℕ ↦ a)⁻¹:Sequence).IsCauchy := by
+theorem Sequence.IsCauchy.const_inv (a : ℚ) : (↑(fun _:ℕ ↦ a)⁻¹:Sequence).IsCauchy := by
   have : (fun x ↦ a)⁻¹ = (fun x:ℕ ↦ a⁻¹) := by simp [funext_iff]
   rw [this]
   exact (Sequence.IsCauchy.const _)
+
+theorem mono_helper (e : ℚ) (he: 0 < e) : ∃ N, ∀ (j : ℕ), N ≤ j → ∀ (k : ℕ), N ≤ k → |((k:ℚ) + 1)⁻¹ - ((j:ℚ) + 1)⁻¹| ≤ e := by
+  obtain ⟨ N, hN ⟩ := exists_nat_gt (2/e)
+  use N
+  intro j hj k hk
+  have habs := abs_sub ((k:ℚ)+1)⁻¹ (j+1)⁻¹
+  suffices h : |((k:ℚ) + 1)⁻¹| + |((j:ℚ) + 1)⁻¹| ≤ e
+  . linarith
+  clear habs
+  rw [abs_of_nonneg, abs_of_nonneg]
+  . have (i:ℕ) (hi: i ≥ N) : ((i:ℚ) + 1)⁻¹ ≤ e/2
+    . rw [le_div_iff₀]
+      . rw [mul_comm, ← le_div_iff₀]
+        . simp
+          rw [mul_comm, ← mul_inv_le_iff₀ he]
+          have : 2 * e⁻¹ = 2 / e := by ring
+          replace hi : (i:ℚ) ≥ N
+          . simp [hi]
+          linarith
+        . simp
+          linarith
+      . norm_num
+    have h1 := this k hk
+    have h2 := this j hj
+    linarith
+  . simp
+    linarith
+  . simp
+    linarith
 
 /-- Remark 5.4.11 --/
 theorem Real.LIM_mono_fail :
@@ -754,9 +783,59 @@ theorem Real.LIM_mono_fail :
     ∧ (b:Sequence).IsCauchy
     ∧ (∀ n, a n > b n)
     ∧ ¬LIM a > LIM b := by
-  use (fun n ↦ 1 + 1/((n:ℚ) + 1))
-  use (fun n ↦ 1 - 1/((n:ℚ) + 1))
-  sorry
+  set a := (fun (n:ℕ) ↦ 1 + 1/((n:ℚ) + 1))
+  set b := (fun (n:ℕ) ↦ 1 - 1/((n:ℚ) + 1))
+  use a, b
+  have ha : (a:Sequence).IsCauchy
+  . unfold a
+    rw [Sequence.IsCauchy.coe]
+    unfold Section_4_3.dist
+    simp
+    intro e he
+    obtain ⟨ N, hN ⟩ := mono_helper e he
+    use N
+    intro j hj k hk
+    specialize hN k hk j hj
+    exact hN
+  have hb : (b:Sequence).IsCauchy
+  . unfold b
+    rw [Sequence.IsCauchy.coe]
+    unfold Section_4_3.dist
+    simp
+    exact mono_helper
+  split_ands
+  . exact ha
+  . exact hb
+  . intro n
+    unfold a b
+    have h1 : 1 / ((n:ℚ) + 1) > 0
+    . simp
+      linarith
+    linarith
+  . suffices h : LIM a = LIM b
+    . linarith
+    rw [LIM_eq_LIM ha hb, Sequence.equiv_iff]
+    intro e he
+    unfold a b
+    simp only [one_div, add_sub_sub_cancel]
+    obtain ⟨ N, hN ⟩ := exists_nat_gt (2/e)
+    use N
+    intro n hn
+    rw [abs_of_nonneg]
+    . have : ((n:ℚ) + 1)⁻¹ + ((n:ℚ) + 1)⁻¹ = 2*(((n:ℚ)+1)⁻¹) := by ring
+      rw [this]; clear this
+      rw [← le_div_iff₀]
+      . simp
+        rw [mul_comm, ← mul_inv_le_iff₀]
+        . replace hn : (n:ℚ) ≥ N
+          . simp [hn]
+          have : 2 * e⁻¹ = 2 / e := by ring
+          linarith
+        . exact he
+      . simp
+        linarith
+    . simp
+      linarith
 
 /-- Proposition 5.4.12 (Bounding reals by rationals) -/
 theorem Real.exists_rat_le_and_nat_gt {x:Real} (hx: x.IsPos) :
