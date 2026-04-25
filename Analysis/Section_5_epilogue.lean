@@ -537,11 +537,17 @@ theorem Real.equivR_eq' {a: ℕ → ℚ} (ha: Sequence.IsCauchy a)
   : (LIM a).equivR = Real.mk ha.CauSeq := by
     by_cases hq: ∃(q: ℚ), q = LIM a
     · obtain ⟨ q, hq ⟩ := hq
-      symm
-      rw [Real.equivR_iff]
-      ext r
-      simp [← hq]
-      sorry
+      rw [← hq]
+      suffices h : q = Real.mk ha.CauSeq
+      . rw [← h]
+        exact equivR_ratCast
+      have hqc := Sequence.IsCauchy.const q
+      rw [ratCast_def, Real.LIM_eq_LIM] at hq
+      . have hq2 := Real.mk_eq_mk hqc ha hq
+        rw [← hq2]
+        simp [← Real.mk_const, Sequence.IsCauchy.CauSeq, CauSeq.const]
+      . exact hqc
+      . exact ha
     show sSup (Rat.cast '' (LIM a).toSet_Rat) = _
     refine IsLUB.csSup_eq ⟨?_, ?_⟩ (Set.Nonempty.image _ <| Real.toSet_Rat_nonempty _)
     · -- show that `Real.mk ha.CauSeq` is an upper bound

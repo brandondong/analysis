@@ -165,10 +165,53 @@ instance Chapter5.Sequence.inst_coe_sequence : Coe Chapter5.Sequence Sequence wh
 theorem Chapter5.coe_sequence_eval (a: Chapter5.Sequence) (n:ℤ) : (a:Sequence) n = (a n:ℝ) := rfl
 
 theorem Sequence.is_steady_of_rat (ε:ℚ) (a: Chapter5.Sequence) :
-    ε.Steady a ↔ (ε:ℝ).Steady (a:Sequence) := by sorry
+    ε.Steady a ↔ (ε:ℝ).Steady (a:Sequence) := by
+  rw [Real.steady_def, Rat.steady_def]
+  constructor <;> intro h
+  . intro n hn m hm
+    rw [Real.close_def, Real.dist_eq]
+    specialize h n (by {
+      simp at hn
+      exact hn
+    }) m (by {
+      simp at hm
+      exact hm
+    })
+    unfold Rat.Close at h
+    simp
+    norm_cast
+  . intro n hn m hm
+    specialize h n (by {
+      simp [hn]
+    }) m (by {
+      simp [hm]
+    })
+    rw [Real.close_def, Real.dist_eq] at h
+    unfold Rat.Close
+    simp at h
+    norm_cast at h
+
+theorem Sequence.from_cast (a: Chapter5.Sequence) (N : ℤ) : ((a.from N):Sequence) = ((a:Sequence).from N) := by
+  ext x
+  . rfl
+  . simp
+    by_cases h : a.n₀ ≤ x <;> simp [h]
+    . by_cases h2 : N ≤ x <;> simp [h2]
 
 theorem Sequence.is_eventuallySteady_of_rat (ε:ℚ) (a: Chapter5.Sequence) :
-    ε.EventuallySteady a ↔ (ε:ℝ).EventuallySteady (a:Sequence) := by sorry
+    ε.EventuallySteady a ↔ (ε:ℝ).EventuallySteady (a:Sequence) := by
+  rw [Rat.eventuallySteady_def, Real.eventuallySteady_def]
+  constructor <;> intro h
+  . obtain ⟨ N, hN1, hN2 ⟩ := h
+    use N, hN1
+    rw [Sequence.is_steady_of_rat] at hN2
+    have := Sequence.from_cast a N
+    rwa [← this]
+  . obtain ⟨ N, hN1, hN2 ⟩ := h
+    use N, hN1
+    rw [Sequence.is_steady_of_rat]
+    have := Sequence.from_cast a N
+    rwa [this]
 
 /-- Proposition 6.1.4 -/
 theorem Sequence.isCauchy_of_rat (a: Chapter5.Sequence) : a.IsCauchy ↔ (a:Sequence).IsCauchy := by
@@ -229,7 +272,33 @@ theorem Sequence.tendsTo_def (a:Sequence) (L:ℝ) :
 
 /-- Exercise 6.1.2 -/
 theorem Sequence.tendsTo_iff (a:Sequence) (L:ℝ) :
-  a.TendsTo L ↔ ∀ ε > 0, ∃ N, ∀ n ≥ N, |a n - L| ≤ ε := by sorry
+  a.TendsTo L ↔ ∀ ε > 0, ∃ N, ∀ n ≥ N, |a n - L| ≤ ε := by
+  rw [Sequence.tendsTo_def]
+  simp_rw [Real.eventuallyClose_def, Real.closeSeq_def]
+  constructor <;> intro h
+  . intro e he
+    specialize h e he
+    obtain ⟨ N, hN1, hN2 ⟩ := h
+    use N
+    intro n hn
+    have hn2 : n ≥ max a.m N
+    . simp [hn]
+      omega
+    specialize hN2 n hn2
+    simp [hn2] at hN2
+    exact hN2
+  . intro e he
+    specialize h e he
+    obtain ⟨ N, hN ⟩ := h
+    use max a.m N
+    constructor
+    . simp
+    . intro n hn
+      have hn2 := hn
+      simp at hn
+      specialize hN n hn.2
+      simp only [hn2]
+      exact hN
 
 noncomputable def seq_6_1_6 : Sequence := (fun (n:ℕ) ↦ 1-(10:ℝ)^(-(n:ℤ)-1):Sequence)
 
@@ -338,10 +407,49 @@ theorem Sequence.lim_harmonic :
 
 /-- Proposition 6.1.12 / Exercise 6.1.5 -/
 theorem Sequence.IsCauchy.convergent {a:Sequence} (h:a.Convergent) : a.IsCauchy := by
-  sorry
+  rw [convergent_def] at h
+  obtain ⟨ L, hL ⟩ := h
+  rw [Sequence.isCauchy_def]
+  intro e he
+  rw [Real.eventuallySteady_def]
+  rw [Sequence.tendsTo_def] at hL
+  specialize hL (e/32) (by linarith)
+  rw [Real.eventuallyClose_def] at hL
+  obtain ⟨ N, hN1, hN2 ⟩ := hL
+  use N, hN1
+  rw [Real.steady_def]
+  rw [Real.closeSeq_def] at hN2
+  intro n hn m hm
+  rw [Real.close_def]
+  have h1 := hN2 n hn
+  have h2 := hN2 m hm
+  rw [Real.dist_eq] at *
+  set c := (a.from N).seq n
+  set d := (a.from N).seq m
+  rw [abs_sub_comm] at h2
+  have : c - d = (c - L) + (L - d) := by ring
+  rw [this]
+  have : |c - L + (L - d)| ≤ |c - L| + |(L - d)| := abs_add_le _ _
+  linarith
 
 /-- Example 6.1.13 -/
-example : ¬ (0.1:ℝ).EventuallySteady ((fun n ↦ (-1:ℝ)^n):Sequence) := by sorry
+example : ¬ (0.1:ℝ).EventuallySteady ((fun n ↦ (-1:ℝ)^n):Sequence) := by
+  rw [Real.eventuallySteady_def]
+  push_neg
+  intro N hN
+  simp at hN
+  rw [Real.steady_def]
+  push_neg
+  use N
+  constructor
+  . simp [hN]
+  use N+1
+  constructor
+  . simp
+    omega
+  rw [Real.close_def, Real.dist_eq]
+  push_neg
+  sorry
 
 /-- Example 6.1.13 -/
 example : ¬ ((fun n ↦ (-1:ℝ)^n):Sequence).IsCauchy := by sorry
@@ -349,9 +457,67 @@ example : ¬ ((fun n ↦ (-1:ℝ)^n):Sequence).IsCauchy := by sorry
 /-- Example 6.1.13 -/
 example : ¬ ((fun n ↦ (-1:ℝ)^n):Sequence).Convergent := by sorry
 
+theorem abs_cast_helper {a:Chapter5.Real} : Chapter5.Real.equivR |a| = |Chapter5.Real.equivR a| := by
+  obtain h | h := lt_or_ge a 0
+  . rw [abs_of_neg h, abs_of_neg]
+    . have := Chapter5.Real.equivR_ordered_ring.map_neg a
+      simp at this ⊢
+      exact this
+    contrapose! h
+    rwa [Chapter5.Real.equivR_map_nonneg]
+  . rw [abs_of_nonneg h, abs_of_nonneg]
+    rwa [Chapter5.Real.equivR_map_nonneg] at h
+
 /-- Proposition 6.1.15 / Exercise 6.1.6 (Formal limits are genuine limits)-/
 theorem Sequence.lim_eq_LIM {a:ℕ → ℚ} (h: (a:Chapter5.Sequence).IsCauchy) :
-    ((a:Chapter5.Sequence):Sequence).TendsTo (Chapter5.Real.equivR (Chapter5.LIM a)) := by sorry
+    ((a:Chapter5.Sequence):Sequence).TendsTo (Chapter5.Real.equivR (Chapter5.LIM a)) := by
+  rw [Sequence.tendsTo_def]
+  intro e he
+  rw [Real.eventuallyClose_def]
+  have ha := Chapter5.Sequence.difference_approaches_zero h
+  obtain ⟨ q, hq1, hq2 ⟩ := exists_pos_rat_lt he
+  specialize ha q hq1
+  obtain ⟨ N, hN ⟩ := ha
+  use N
+  constructor
+  . simp
+  rw [Real.closeSeq_def]
+  intro n hn
+  simp at hn
+  rw [Real.dist_eq]
+  have hn2 : 0 ≤ n := by omega
+  simp [hn, hn2]
+  lift n to ℕ using hn2
+  simp at ⊢ hn
+  have hr : (Chapter5.LIM a).toCut.toR = (Chapter5.LIM a).equivR := by rfl
+  rw [hr]
+  specialize hN n hn
+  rw [abs_sub_comm]
+  have hq := Chapter5.Real.equivR_ratCast (q:=q)
+  have h1 : |Chapter5.Real.equivR (Chapter5.LIM a) - (a n)| = Chapter5.Real.equivR |Chapter5.LIM a - (a n)|
+  . set d := a n
+    set c := (Chapter5.LIM a)
+    rw [abs_cast_helper]
+    suffices h : Chapter5.Real.equivR c - ↑d = Chapter5.Real.equivR (c - ↑d)
+    . rw [h]
+    have := Chapter5.Real.equivR_ordered_ring.map_sub c d
+    simp at this ⊢
+    rw [this]
+  have h2 : Chapter5.Real.equivR |Chapter5.LIM a - (a n)| ≤ q
+  . set r := |Chapter5.LIM a - (a n)|
+    replace hN : 0 ≤ q - r := by linarith
+    rw [Chapter5.Real.equivR_map_nonneg] at hN
+    have : Chapter5.Real.equivR (↑q - r) = q - Chapter5.Real.equivR r
+    . have : Chapter5.Real.equivR (↑q - r) = Chapter5.Real.equivR.toFun q - Chapter5.Real.equivR r
+      . have := Chapter5.Real.equivR_ordered_ring.map_sub q r
+        simp at this
+        simp [this]
+        exact hq.symm
+      rw [this]
+      simp
+      exact hq
+    linarith
+  linarith
 
 /-- Definition 6.1.16 -/
 abbrev Sequence.BoundedBy (a:Sequence) (M:ℝ) : Prop :=
@@ -368,18 +534,86 @@ abbrev Sequence.IsBounded (a:Sequence) : Prop := ∃ M ≥ 0, a.BoundedBy M
 lemma Sequence.isBounded_def (a:Sequence) :
   a.IsBounded ↔ ∃ M ≥ 0, a.BoundedBy M := by rfl
 
+theorem Sequence.finite_bounded_helper (a:Sequence) (N : ℤ) (hN : N ≥ a.m) : ∃ M:ℝ, ∀ n<N, |a.seq n| ≤ M := by
+  suffices h (n':ℕ) : ∃ M, ∀ n < (a.m + n'), |a.seq n| ≤ M
+  . rw [ge_iff_le, le_iff_exists_nonneg_add] at hN
+    obtain ⟨ c, hc1, hc2 ⟩ := hN
+    lift c to ℕ using hc1
+    specialize h c
+    simp_rw [hc2] at h
+    exact h
+  clear hN N
+  induction' n' with c IH
+  . use 0
+    intro n hn
+    simp
+    simp at hn
+    exact a.vanish n hn
+  obtain ⟨ M, hM ⟩ := IH
+  use max M (|a (a.m + c)|)
+  intro n hn
+  obtain h | h := lt_or_ge n (a.m + c)
+  . specialize hM n h
+    simp [hM]
+  replace h : a.m + ↑c = n := by omega
+  rw [← h]
+  simp
+
 theorem Sequence.bounded_of_cauchy {a:Sequence} (h: a.IsCauchy) : a.IsBounded := by
-  sorry
+  rw [Sequence.isCauchy_def] at h
+  specialize h 1 (by norm_num)
+  rw [Real.eventuallySteady_def] at h
+  obtain ⟨ N, hN1, hN2 ⟩ := h
+  rw [Sequence.isBounded_def]
+  rw [Real.steady_def] at hN2
+  obtain ⟨ M, hM ⟩ := Sequence.finite_bounded_helper a N hN1
+  use max (|a.seq N| + 1) M
+  constructor
+  . simp
+    left
+    have := abs_nonneg (a.seq N)
+    linarith
+  . rw [Sequence.boundedBy_def]
+    intro n
+    obtain h | h := lt_or_ge n N
+    . simp
+      right
+      exact hM n h
+    . specialize hN2 N (by simp [hN1]) n (by simp [hN1, h])
+      rw [Real.close_def, Real.dist_eq] at hN2
+      simp [hN1, h] at hN2
+      rw [abs_sub_comm] at hN2
+      have : a.seq n = a.seq n - a.seq N + a.seq N := by ring
+      rw [this]; clear this
+      have := abs_add_le (a.seq n - a.seq N) (a.seq N)
+      simp only [le_sup_iff]
+      left
+      linarith
 
 /-- Corollary 6.1.17 -/
 theorem Sequence.bounded_of_convergent {a:Sequence} (h: a.Convergent) : a.IsBounded := by
-  sorry
+  have := Sequence.IsCauchy.convergent h
+  exact bounded_of_cauchy this
 
 /-- Example 6.1.18 -/
-example : ¬ ((fun (n:ℕ) ↦ (n+1:ℝ)):Sequence).IsBounded := by sorry
+theorem example_6_1_18_bounded : ¬ ((fun (n:ℕ) ↦ (n+1:ℝ)):Sequence).IsBounded := by
+  rw [Sequence.isBounded_def]
+  push_neg
+  intro M hM
+  rw [Sequence.boundedBy_def]
+  push_neg
+  obtain ⟨ n, hn ⟩ := exists_nat_gt M
+  use n
+  simp
+  rw [abs_of_nonneg]
+  . linarith
+  . linarith
 
 /-- Example 6.1.18 -/
-example : ¬ ((fun (n:ℕ) ↦ (n+1:ℝ)):Sequence).Convergent := by sorry
+example : ¬ ((fun (n:ℕ) ↦ (n+1:ℝ)):Sequence).Convergent := by
+  have h := example_6_1_18_bounded
+  contrapose! h
+  exact Sequence.bounded_of_convergent h
 
 instance Sequence.inst_add : Add Sequence where
   add a b := {
