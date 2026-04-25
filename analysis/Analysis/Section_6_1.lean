@@ -164,10 +164,53 @@ instance Chapter5.Sequence.inst_coe_sequence : Coe Chapter5.Sequence Sequence wh
 theorem Chapter5.coe_sequence_eval (a: Chapter5.Sequence) (n:ℤ) : (a:Sequence) n = (a n:ℝ) := rfl
 
 theorem Sequence.is_steady_of_rat (ε:ℚ) (a: Chapter5.Sequence) :
-    ε.Steady a ↔ (ε:ℝ).Steady (a:Sequence) := by sorry
+    ε.Steady a ↔ (ε:ℝ).Steady (a:Sequence) := by
+  rw [Real.steady_def, Rat.steady_def]
+  constructor <;> intro h
+  . intro n hn m hm
+    rw [Real.close_def, Real.dist_eq]
+    specialize h n (by {
+      simp at hn
+      exact hn
+    }) m (by {
+      simp at hm
+      exact hm
+    })
+    unfold Rat.Close at h
+    simp
+    norm_cast
+  . intro n hn m hm
+    specialize h n (by {
+      simp [hn]
+    }) m (by {
+      simp [hm]
+    })
+    rw [Real.close_def, Real.dist_eq] at h
+    unfold Rat.Close
+    simp at h
+    norm_cast at h
+
+theorem Sequence.from_cast (a: Chapter5.Sequence) (N : ℤ) : ((a.from N):Sequence) = ((a:Sequence).from N) := by
+  ext x
+  . rfl
+  . simp
+    by_cases h : a.n₀ ≤ x <;> simp [h]
+    . by_cases h2 : N ≤ x <;> simp [h2]
 
 theorem Sequence.is_eventuallySteady_of_rat (ε:ℚ) (a: Chapter5.Sequence) :
-    ε.EventuallySteady a ↔ (ε:ℝ).EventuallySteady (a:Sequence) := by sorry
+    ε.EventuallySteady a ↔ (ε:ℝ).EventuallySteady (a:Sequence) := by
+  rw [Rat.eventuallySteady_def, Real.eventuallySteady_def]
+  constructor <;> intro h
+  . obtain ⟨ N, hN1, hN2 ⟩ := h
+    use N, hN1
+    rw [Sequence.is_steady_of_rat] at hN2
+    have := Sequence.from_cast a N
+    rwa [← this]
+  . obtain ⟨ N, hN1, hN2 ⟩ := h
+    use N, hN1
+    rw [Sequence.is_steady_of_rat]
+    have := Sequence.from_cast a N
+    rwa [this]
 
 /-- Proposition 6.1.4 -/
 theorem Sequence.isCauchy_of_rat (a: Chapter5.Sequence) : a.IsCauchy ↔ (a:Sequence).IsCauchy := by
