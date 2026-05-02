@@ -447,8 +447,11 @@ example : ¬ (0.1:ℝ).EventuallySteady ((fun n ↦ (-1:ℝ)^n):Sequence) := by
   constructor
   . simp
     omega
-  rw [Real.close_def, Real.dist_eq]
-  push_neg
+  rw [Real.dist_eq]
+  have hN2 : 0 ≤ N + 1 := by omega
+  simp [hN, hN2]
+  lift N to ℕ using hN
+  simp
   sorry
 
 /-- Example 6.1.13 -/

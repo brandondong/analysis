@@ -83,7 +83,7 @@ example : ¬ (0.1:ℚ).Steady ((fun n:ℕ ↦ ((1.1:ℚ) * (-1)^n)):Sequence) :=
   use 0, 1
   simp [Rat.Close]
   ring_nf
-  rw [abs_of_nonneg] <;> norm_num
+  norm_num
 
 /-- Definition 5.2.3 (Eventually ε-close sequences) -/
 lemma Rat.eventuallyClose_def (ε: ℚ) (a b: Sequence) :
@@ -129,7 +129,7 @@ example : ¬ (0.1:ℚ).CloseSeq ((fun n:ℕ ↦ (1:ℚ)+10^(-(n:ℤ)-1)):Sequenc
   use 0
   simp [Rat.Close]
   ring_nf
-  rw [abs_of_nonneg] <;> norm_num
+  norm_num
 
 example : (0.1:ℚ).EventuallyClose ((fun n:ℕ ↦ (1:ℚ)+10^(-(n:ℤ)-1)):Sequence)
   ((fun n:ℕ ↦ (1:ℚ)-10^(-(n:ℤ)-1)):Sequence) := by
@@ -142,21 +142,18 @@ example : (0.1:ℚ).EventuallyClose ((fun n:ℕ ↦ (1:ℚ)+10^(-(n:ℤ)-1)):Seq
   obtain ⟨ x, rfl ⟩ := hn
   simp
   ring_nf
-  rw [abs_of_nonneg]
-  . induction' x with x IH
-    . norm_num
-    simp at IH ⊢
-    have : (10:ℚ) ^ ((-2:ℤ) - (↑x + 1)) = 10 ^ ((-2:ℤ) - ↑x) * 10⁻¹
-    . have : (-2:ℤ) - (↑x + 1) = (-2:ℤ) - ↑x - 1 := by omega
-      rw [this]; clear this
-      have : (10:ℚ) ≠ 0 := by norm_num
-      exact zpow_sub_one₀ this (-2 - ↑x)
+  induction' x with x IH
+  . norm_num
+  simp at IH ⊢
+  have : (10:ℚ) ^ ((-2:ℤ) - (↑x + 1)) = 10 ^ ((-2:ℤ) - ↑x) * 10⁻¹
+  . have : (-2:ℤ) - (↑x + 1) = (-2:ℤ) - ↑x - 1 := by omega
     rw [this]; clear this
-    have : (10:ℚ) ^ ((-2:ℤ) - ↑x) * 10⁻¹ * 2 = 10 ^ ((-2:ℤ) - ↑x) * 2 * 10⁻¹ := by linarith
-    rw [this]; clear this
-    linarith
-  . apply zpow_nonneg
-    norm_num
+    have : (10:ℚ) ≠ 0 := by norm_num
+    exact zpow_sub_one₀ this (-2 - ↑x)
+  rw [this]; clear this
+  have : (10:ℚ) ^ ((-2:ℤ) - ↑x) * 10⁻¹ * 2 = 10 ^ ((-2:ℤ) - ↑x) * 2 * 10⁻¹ := by linarith
+  rw [this]; clear this
+  linarith
 
 example : (0.01:ℚ).EventuallyClose ((fun n:ℕ ↦ (1:ℚ)+10^(-(n:ℤ)-1)):Sequence)
   ((fun n:ℕ ↦ (1:ℚ)-10^(-(n:ℤ)-1)):Sequence) := by
@@ -169,17 +166,14 @@ example : (0.01:ℚ).EventuallyClose ((fun n:ℕ ↦ (1:ℚ)+10^(-(n:ℤ)-1)):Se
   obtain ⟨ x, rfl ⟩ := hn
   simp
   ring_nf
-  rw [abs_of_nonneg]
-  . induction' x with x IH
-    . norm_num
-    have : (-3:ℤ) - ↑(x + 1) = -3 - ↑x - 1 := by omega
-    rw [this]; clear this
-    have h10 : (10:ℚ) ≠ 0 := by norm_num
-    have : (10:ℚ) ^ ((-3:ℤ) - ↑x - 1) = 10 ^ ((-3:ℤ) - ↑x) * 10⁻¹ := by exact zpow_sub_one₀ h10 _
-    rw [this]; clear this
-    linarith
-  . apply zpow_nonneg
-    norm_num
+  induction' x with x IH
+  . norm_num
+  have : (-3:ℤ) - ↑(x + 1) = -3 - ↑x - 1 := by omega
+  rw [this]; clear this
+  have h10 : (10:ℚ) ≠ 0 := by norm_num
+  have : (10:ℚ) ^ ((-3:ℤ) - ↑x - 1) = 10 ^ ((-3:ℤ) - ↑x) * 10⁻¹ := by exact zpow_sub_one₀ h10 _
+  rw [this]; clear this
+  linarith
 
 /-- Definition 5.2.6 (Equivalent sequences) -/
 abbrev Sequence.Equiv (a b: ℕ → ℚ) : Prop :=
@@ -308,7 +302,7 @@ theorem Sequence.isBounded_of_eventuallyClose {ε:ℚ} {a b: ℕ → ℚ} (hab: 
     . have : (b:Sequence).seq n = (b:Sequence).seq n - (a:Sequence).seq n + (a:Sequence).seq n := by ring
       rw [this]; clear this
       calc
-        _ ≤ |(b:Sequence).seq n - (a:Sequence).seq n| + |(a:Sequence).seq n| := by exact abs_add _ _
+        _ ≤ |(b:Sequence).seq n - (a:Sequence).seq n| + |(a:Sequence).seq n| := by exact abs_add_le _ _
         _ ≤ _ := by {
           have : |(b:Sequence).seq n - (a:Sequence).seq n| ≤ ε
           . rw [abs_sub_comm]

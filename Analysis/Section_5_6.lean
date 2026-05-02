@@ -753,7 +753,7 @@ theorem Real.pow_root_eq_pow_root {a a':ℤ} {b b':ℕ} (hb: b > 0) (hb' : b' > 
     simp_all
   have : a' > 0
   . norm_cast at hq
-    rw [Rat.divInt_eq_divInt] at hq
+    rw [Rat.divInt_eq_divInt_iff] at hq
     . have : a' * b > 0
       . suffices h : a * b' > 0
         . rwa [← hq]
@@ -811,6 +811,8 @@ theorem Real.ratPow_add {x:Real} (hx: x > 0) (q r:ℚ) : x^(q+r) = x^q * x^r := 
   obtain ⟨ c, d, hd, rfl ⟩ := Rat.eq_quot r
   have : (a:ℚ) / ↑b + ↑c / ↑d = ((a * d + c * b):ℤ) / ((b * d):ℕ)
   . field_simp
+    simp
+    ring
   have hbd := Nat.mul_pos hb hd
   have hx2 : x ≥ 0 := by linarith
   rw [this, ratPow_def, ratPow_def, ratPow_def]
@@ -858,6 +860,8 @@ theorem Real.ratPow_ratPow {x:Real} (hx: x > 0) (q r:ℚ) : (x^q)^r = x^(q*r) :=
     omega
   have : ((a:ℚ) / ↑b * (↑c / ↑d)) = (((a * c):ℤ) / ((b * d):ℕ))
   . field_simp
+    simp
+    ring
   rw [ratPow_def, ratPow_def, this, ratPow_def, ← zpow_mul]
   . suffices h : (x.root b ^ a).root d = (x.root (b * d) ^ a)
     . rw [h]
