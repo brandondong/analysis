@@ -725,19 +725,13 @@ theorem zpow_inj {x y:ℚ} {n:ℤ} (hx: x > 0) (hy : y > 0) (hn: n ≠ 0) (hxy: 
 
 /-- Proposition 4.3.12(d) (Properties of exponentiation, II) / Exercise 4.3.4 -/
 theorem zpow_abs (x:ℚ) (n:ℤ) : |x|^n = |x^n| := by
-  match n with
-  | .ofNat n =>
-    simp
-  | .negSucc n =>
-    simp
-    induction' n with n IH
-    . simp
-      rw [abs_inv]
-    rw [pow_succ]
-    have : (|x| ^ (n + 1) * |x|)⁻¹ = (|x| ^ (n + 1))⁻¹ * (|x|)⁻¹ := by ring
-    rw [this, IH, ← abs_inv, ← abs_mul]
-    have : (x ^ (n + 1))⁻¹ * x⁻¹ = (x ^ (n + 1) * x)⁻¹ := by ring
-    rw [this, ← pow_succ]
+  obtain ⟨ n, hn ⟩ := Int.eq_nat_or_neg n
+  obtain rfl | rfl := hn
+  . exact pow_abs _ _
+  . rw [zpow_neg, zpow_neg]
+    have h := pow_abs x n
+    rw [h]
+    simp only [one_div, abs_inv]
 
 /-- Exercise 4.3.5 -/
 theorem two_pow_geq (N:ℕ) : 2^N ≥ N := by

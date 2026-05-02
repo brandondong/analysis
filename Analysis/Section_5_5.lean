@@ -91,8 +91,7 @@ example : IsLUB (.Icc 0 1) (1 : Real) := by
   constructor
   . simp [Real.upperBound_def]
   simp_rw [Real.upperBound_def]
-  intro M
-  intro h
+  intro M h
   specialize h 1 (by simp)
   exact h
 
@@ -170,7 +169,8 @@ theorem Real.upperBound_discrete_unique {E: Set Real} {n:ℕ} {m m':ℤ}
     x ≤ ((↑m / r):ℚ) := hm1
     _ ≤ (((m'-1) / r):ℚ) := by {
       suffices h : (↑m / r) ≤ ↑((↑m' - 1) / r)
-      . exact GCongr.ratCast_le_ratCast h
+      . norm_cast
+        simp [h]
       exact (div_le_div_iff_of_pos_right hr).mpr hm
     }
     _ = _ := by {
@@ -387,7 +387,8 @@ theorem Real.LIM_of_Cauchy {q:ℕ → ℚ} (hq: ∀ M, ∀ n ≥ M, ∀ n' ≥ M
   have : 1 / ((((M:ℕ) + 1):ℕ):Real) = ((1:ℚ) / ((M:ℚ) + (1:ℚ)):ℚ)
   . simp
   rw [this]; clear this
-  exact GCongr.ratCast_le_ratCast hq
+  norm_cast
+  simp only [Nat.cast_add, Nat.cast_one, hq]
 
 /--
 The sequence m₁, m₂, … is well-defined.
@@ -680,8 +681,7 @@ theorem Real.irrat_between {x y:Real} (hxy: x < y) :
     rw [this]; clear this
     have : i⁻¹ < 1
     . field_simp
-      rw [one_div_lt (by linarith) (by norm_num)]
-      simp [hi1]
+      exact hi1
     calc
       _ < (↑b - ↑a) * (1:Real) := by exact mul_lt_mul_of_pos_left i⁻¹ 1 (↑b - ↑a) this hba1
       _ = _ := by ring

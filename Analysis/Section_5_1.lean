@@ -53,7 +53,7 @@ def Sequence.ofNatFun (f : ℕ → ℚ) : Sequence where
     vanish := by grind
 
 -- Notice how the delaborator prints this as `↑fun x ↦ ↑x ^ 2 : Sequence`.
-#check Sequence.ofNatFun (· ^ 2)
+-- #check Sequence.ofNatFun (· ^ 2)
 
 /--
 If {given}`a : ℕ → ℚ` is used in a context where a {name}`Sequence` is expected, automatically coerce {name}`a` to {lean}`Sequence.ofNatFun a` (which will be pretty-printed as {lean (type :="Sequence")}`↑a`).
@@ -408,14 +408,9 @@ example : ¬((fun n:ℕ ↦ (-1)^n * (n+1:ℚ)):Sequence).IsBounded := by
   obtain ⟨ n, hn ⟩ := exists_nat_gt M
   replace h := h n
   simp at h
-  have : |(-1:ℚ) ^ n * (↑n + 1)| = n+1
-  . rw [abs_mul]
-    have : |(-1:ℚ) ^ n| = 1
-    . exact abs_neg_one_pow n
-    simp [this]
-    linarith
-  rw [this] at h
-  linarith
+  rw [abs_of_nonneg] at h
+  . linarith
+  . linarith
 
 /-- Example 5.1.13 -/
 example : ((fun n:ℕ ↦ (-1:ℚ)^n):Sequence).IsBounded := by
@@ -580,8 +575,6 @@ theorem Sequence.isBounded_mul {a b:ℕ → ℚ} (ha: (a:Sequence).IsBounded) (h
     simp [hn]
     exact Rat.mul_nonneg hM1 hN1
   simp [hn] at hM2 hN2 ⊢
-  have := abs_mul (a n.toNat) (b n.toNat)
-  simp [this]
   have ha : |a n.toNat| ≥ 0 := by simp
   exact mul_le_mul_of_nonneg hM2 hN2 ha hN1
 

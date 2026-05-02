@@ -76,7 +76,7 @@ theorem Sequence.equiv_trans {a b c:ℕ → ℚ} (hab: Equiv a b) (hbc: Equiv b 
     intro n hn
     replace h1 := h1 n (by omega)
     replace h2 := h2 n (by omega)
-    have := abs_add (a n - b n) (b n - c n)
+    have := abs_add_le (a n - b n) (b n - c n)
     linarith
   }
 
@@ -703,9 +703,8 @@ example : ¬ BoundedAwayZero (fun n ↦ 10^(-(n:ℤ)-1)) := by
           calc
             n + 1 ≤ 10 ^ n * 1 := by omega
             _ < _ := by {
-              rw [mul_lt_mul_left]
-              . norm_num
-              . omega
+              gcongr
+              norm_num
             }
         have h2 : 1 < (10 * c.num)
         . have h : c.num ≥ 1 := by exact Rat.num_pos.mpr hc

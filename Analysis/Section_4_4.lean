@@ -179,9 +179,6 @@ def Rat.pos_infinite_descent : Decidable (∃ a:ℕ → {x: ℚ // 0 < x}, ∀ n
     simp
     ring
 
-#check even_iff_exists_two_mul
-#check odd_iff_exists_bit1
-
 theorem Nat.even_or_odd'' (n:ℕ) : Even n ∨ Odd n := by
   induction' n with n IH
   . left
@@ -210,8 +207,6 @@ theorem Nat.not_even_and_odd (n:ℕ) : ¬ (Even n ∧ Odd n) := by
   obtain ⟨ y, hy ⟩ := ho
   have h : 2 * (x + y) = 1 := by omega
   obtain h | h | h := lt_trichotomy (x+y) 1 <;> omega
-
-#check Nat.rec
 
 /-- Proposition 4.4.4 / Exercise 4.4.3  -/
 theorem Rat.not_exist_sqrt_two : ¬ ∃ x:ℚ, x^2 = 2 := by

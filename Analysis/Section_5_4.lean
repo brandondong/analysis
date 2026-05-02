@@ -630,21 +630,21 @@ theorem mul_lt_mul_of_pos_left : ∀ (a b c : Real), a < b → 0 < c → c * a <
 instance Real.instIsStrictOrderedRing : IsStrictOrderedRing Real where
   add_le_add_left := by {
     intro a b h c
-    exact add_le_add_left a b h c
+    have := add_le_add_left a b h c
+    rwa [add_comm, add_comm b c]
   }
   add_le_add_right := by {
     intro a b h c
-    have := add_le_add_left a b h c
-    rwa [add_comm a c, add_comm b c]
+    exact add_le_add_left a b h c
   }
   mul_lt_mul_of_pos_left := by {
-    intro a b c h hc
-    exact mul_lt_mul_of_pos_left a b c h hc
+    intro a ha b c hbc
+    exact mul_lt_mul_of_pos_left b c a hbc ha
   }
   mul_lt_mul_of_pos_right := by {
-    intro a b c h hc
-    have := mul_lt_mul_of_pos_left a b c h hc
-    rwa [mul_comm a c, mul_comm b c]
+    intro a ha b c hc
+    have := mul_lt_mul_of_pos_left b c a hc ha
+    rwa [mul_comm, mul_comm c a]
   }
   le_of_add_le_add_left := by {
     intro a b c h
