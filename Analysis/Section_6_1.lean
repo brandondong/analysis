@@ -625,6 +625,8 @@ instance Sequence.inst_add : Add Sequence where
     vanish n hn := by simp [a.vanish n (by grind), b.vanish n (by grind)]
   }
 
+theorem Sequence.add_m (a b: Sequence) : (a + b).m = min a.m b.m := by rfl
+
 @[simp]
 theorem Sequence.add_eval {a b: Sequence} (n:ℤ) : (a + b) n = a n + b n := rfl
 
@@ -636,7 +638,32 @@ theorem Sequence.add_coe (a b: ℕ → ℝ) : (a:Sequence) + (b:Sequence) = (fun
     in applications. -/
 theorem Sequence.tendsTo_add {a b:Sequence} {L M:ℝ} (ha: a.TendsTo L) (hb: b.TendsTo M) :
   (a+b).TendsTo (L+M) := by
-  sorry
+  rw [Sequence.tendsTo_def] at *
+  intro e he
+  specialize ha (e/32) (by linarith)
+  specialize hb (e/32) (by linarith)
+  rw [Real.eventuallyClose_def] at *
+  obtain ⟨ Na, hNa1, hNa2 ⟩ := ha
+  obtain ⟨ Nb, hNb1, hNb2 ⟩ := hb
+  use max Na Nb
+  constructor
+  . simp [Sequence.add_m, hNa1]
+  rw [Real.closeSeq_def] at *
+  intro n hn
+  simp at hn
+  obtain ⟨ hn, hna, hnb ⟩ := hn
+  have hnam : a.m ≤ n := by omega
+  have hnbm : b.m ≤ n := by omega
+  specialize hNa2 n (by simp [hnam, hna])
+  specialize hNb2 n (by simp [hnbm, hnb])
+  rw [Real.dist_eq] at *
+  simp [hn, hna, hnb]
+  simp [hnam, hna] at hNa2
+  simp [hnbm, hnb] at hNb2
+  have : a.seq n + b.seq n - (L + M) = (a.seq n - L) + (b.seq n - M) := by ring
+  rw [this]; clear this
+  have := abs_add_le (a.seq n - L) (b.seq n - M)
+  linarith
 
 theorem Sequence.lim_add {a b:Sequence} (ha: a.Convergent) (hb: b.Convergent) :
   (a + b).Convergent ∧ lim (a + b) = lim a + lim b := by
