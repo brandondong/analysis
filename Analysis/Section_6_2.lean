@@ -75,25 +75,139 @@ example : ¬ (3:EReal) ≤ ⊥ := by
 #check instCompleteLinearOrderEReal
 
 /-- Proposition 6.2.5(a) / Exercise 6.2.1 -/
-theorem EReal.refl (x:EReal) : x ≤ x := by sorry
+theorem EReal.refl (x:EReal) : x ≤ x := by
+  rw [EReal.le_iff]
+  obtain ⟨ y, rfl ⟩ | h := EReal.def x
+  . left
+    use y, y
+  . simp [h]
 
 /-- Proposition 6.2.5(b) / Exercise 6.2.1 -/
-theorem EReal.trichotomy (x y:EReal) : x < y ∨ x = y ∨ x > y := by sorry
+theorem EReal.trichotomy (x y:EReal) : x < y ∨ x = y ∨ x > y := by
+  have hx := EReal.def x
+  have hy := EReal.def y
+  obtain ⟨ x, rfl ⟩ | rfl | rfl := hx
+  . obtain ⟨ y, rfl ⟩ | rfl | rfl := hy
+    . norm_cast
+      exact lt_trichotomy x y
+    . simp
+    . simp
+  . obtain ⟨ y, rfl ⟩ | rfl | rfl := hy
+    . simp
+    . simp
+    . right; right
+      exact bot_lt_top
+  . obtain ⟨ y, rfl ⟩ | rfl | rfl := hy
+    . simp
+    . left
+      exact bot_lt_top
+    . simp
 
 /-- Proposition 6.2.5(b) / Exercise 6.2.1 -/
-theorem EReal.not_lt_and_eq (x y:EReal) : ¬ (x < y ∧ x = y) := by sorry
+theorem EReal.not_lt_and_eq (x y:EReal) : ¬ (x < y ∧ x = y) := by
+  intro h
+  rw [EReal.lt_iff] at h
+  tauto
 
 /-- Proposition 6.2.5(b) / Exercise 6.2.1 -/
-theorem EReal.not_gt_and_eq (x y:EReal) : ¬ (x > y ∧ x = y) := by sorry
+theorem EReal.not_gt_and_eq (x y:EReal) : ¬ (x > y ∧ x = y) := by
+  intro h
+  rw [gt_iff_lt, EReal.lt_iff] at h
+  tauto
+
+theorem EReal.not_ge_top (x:ℝ) : ¬ ((⊤:EReal) ≤ x) := by
+  intro h
+  rw [le_iff] at h
+  obtain h | h | h := h
+  . obtain ⟨ y, z, h, _ ⟩ := h
+    have := EReal.real_neq_infty y
+    tauto
+  . have := EReal.real_neq_infty x
+    tauto
+  . tauto
+
+theorem EReal.not_le_bottom (x:ℝ) : ¬ (x ≤ (⊥:EReal)) := by
+  intro h
+  rw [le_iff] at h
+  obtain h | h | h := h
+  . obtain ⟨ y, z, h, _ ⟩ := h
+    have := EReal.real_neq_infty z
+    tauto
+  . tauto
+  . tauto
+
+theorem EReal.le_top (x:EReal) : x ≤ ⊤ := by
+  obtain ⟨ x, rfl ⟩ | rfl | rfl := EReal.def x
+  . simp [le_iff]
+  . simp
+  . simp
+
+theorem EReal.bottom_le (x:EReal) : ⊥ ≤ x := by
+  obtain ⟨ x, rfl ⟩ | rfl | rfl := EReal.def x
+  . simp only [le_iff]
+    tauto
+  . simp
+  . simp
+
+theorem EReal.top_le_eq_top {x:EReal} (h: ⊤ ≤ x) : x = ⊤ := by
+  simp [le_iff] at h
+  tauto
 
 /-- Proposition 6.2.5(b) / Exercise 6.2.1 -/
-theorem EReal.not_lt_and_gt (x y:EReal) : ¬ (x < y ∧ x > y) := by sorry
+theorem EReal.not_lt_and_gt (x y:EReal) : ¬ (x < y ∧ x > y) := by
+  intro h
+  rw [gt_iff_lt, EReal.lt_iff, EReal.lt_iff] at h
+  obtain ⟨ ⟨ h1, h3 ⟩, h2, h4 ⟩ := h; clear h4
+  have hx := EReal.def x
+  have hy := EReal.def y
+  obtain ⟨ x, rfl ⟩ | rfl | rfl := hx
+  . obtain ⟨ y, rfl ⟩ | rfl | rfl := hy
+    . simp at h1 h2 h3
+      have : x = y := by linarith
+      contradiction
+    . have := EReal.not_ge_top x
+      tauto
+    . have := EReal.not_le_bottom x
+      tauto
+  . obtain ⟨ y, rfl ⟩ | rfl | rfl := hy
+    . have := EReal.not_ge_top y
+      tauto
+    . contradiction
+    . tauto
+  . obtain ⟨ y, rfl ⟩ | rfl | rfl := hy
+    . have := EReal.not_le_bottom y
+      tauto
+    . tauto
+    . simp at h3
 
 /-- Proposition 6.2.5(c) / Exercise 6.2.1 -/
-theorem EReal.trans {x y z:EReal} (hxy : x ≤ y) (hyz: y ≤ z) : x ≤ z := by sorry
+theorem EReal.trans {x y z:EReal} (hxy : x ≤ y) (hyz: y ≤ z) : x ≤ z := by
+  have hx := EReal.def x
+  have hy := EReal.def y
+  have hz := EReal.def z
+  obtain ⟨ x, rfl ⟩ | rfl | rfl := hx
+  . obtain ⟨ y, rfl ⟩ | rfl | rfl := hy
+    . obtain ⟨ z, rfl ⟩ | rfl | rfl := hz
+      . simp at *
+        linarith
+      . simp [le_iff]
+      . simp at hyz
+    . obtain rfl := EReal.top_le_eq_top hyz
+      exact hxy
+    . simp at hxy
+  . obtain rfl := EReal.top_le_eq_top hxy
+    exact hyz
+  . simp
 
 /-- Proposition 6.2.5(d) / Exercise 6.2.1 -/
-theorem EReal.neg_of_lt {x y:EReal} (hxy : x ≤ y): -y ≤ -x := by sorry
+theorem EReal.neg_of_lt {x y:EReal} (hxy : x ≤ y): -y ≤ -x := by
+  rw [le_iff] at hxy
+  obtain h | rfl | rfl := hxy
+  . obtain ⟨ x, y, rfl, rfl, h ⟩ := h
+    simp [h]
+  . simp only [neg_top, EReal.bottom_le]
+  . simp
+    exact EReal.le_top _
 
 /-- Definition 6.2.6 -/
 theorem EReal.sup_of_bounded_nonempty {E: Set ℝ} (hbound: BddAbove E) (hnon: E.Nonempty) :
