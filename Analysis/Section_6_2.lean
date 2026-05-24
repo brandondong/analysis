@@ -251,41 +251,133 @@ abbrev Example_6_2_7 : Set EReal := { x | ∃ n:ℕ, x = -((n+1):EReal)} ∪ {�
 
 example : sSup Example_6_2_7 = -1 := by
   rw [EReal.sup_of_neg_infty_mem]
-  sorry
+  simp
+  apply sSup_eq_of_forall_le_of_forall_lt_exists_gt
+  . simp
+    intro a
+    norm_cast
+    omega
+  intro w hw
+  simp
+  use 0
+  simp [hw]
 
 example : sInf Example_6_2_7 = ⊥ := by
   rw [EReal.inf_eq_neg_sup]
-  sorry
+  simp
+  tauto
 
 /-- Example 6.2.8 -/
 abbrev Example_6_2_8 : Set EReal := { x | ∃ n:ℕ, x = (1 - (10:ℝ)^(-(n:ℤ)-1):Real)}
 
-example : sInf Example_6_2_8 = (0.9:ℝ) := by sorry
+example : sInf Example_6_2_8 = (0.9:ℝ) := by
+  unfold Example_6_2_8
+  apply sInf_eq_of_forall_ge_of_forall_gt_exists_lt
+  . simp
+    intro a
+    norm_cast
+    suffices h : (10:ℝ) ^ (-(a:ℤ) - 1) ≤ 0.1
+    . linarith
+    sorry
+  . sorry
 
-example : sSup Example_6_2_8 = 1 := by sorry
+example : sSup Example_6_2_8 = 1 := by
+  unfold Example_6_2_8
+  apply sSup_eq_of_forall_le_of_forall_lt_exists_gt
+  . simp
+    intro n
+    norm_cast
+    suffices h : (10:ℝ) ^ (-(n:ℤ) - 1) ≥ 0
+    . linarith
+    apply zpow_nonneg
+    norm_num
+  sorry
 
 /-- Example 6.2.9 -/
 abbrev Example_6_2_9 : Set EReal := { x | ∃ n:ℕ, x = n+1}
 
-example : sInf Example_6_2_9 = 1 := by sorry
+example : sInf Example_6_2_9 = 1 := by
+  unfold Example_6_2_9
+  apply sInf_eq_of_forall_ge_of_forall_gt_exists_lt
+  . simp
+    intro a
+    norm_cast
+    omega
+  . intro w hw
+    use 1
+    constructor
+    . simp
+      use 0
+      norm_num
+    . exact hw
 
-example : sSup Example_6_2_9 = ⊤ := by sorry
+example : sSup Example_6_2_9 = ⊤ := by
+  unfold Example_6_2_9
+  apply sSup_eq_of_forall_le_of_forall_lt_exists_gt
+  . simp
+    intro a
+    tauto
+  . intro w wt
+    obtain ⟨ x, rfl ⟩ | h | rfl := EReal.def w
+    . obtain ⟨ n, hn ⟩ := exists_nat_gt x
+      use n+1
+      constructor
+      . simp
+        use n
+      . norm_cast
+        simp
+        linarith
+    . rw [lt_iff] at wt
+      tauto
+    . use 1
+      constructor
+      . simp
+        use 0
+        norm_num
+      . tauto
 
-example : sInf (∅ : Set EReal) = ⊤ := by sorry
-
-example (E: Set EReal) : sSup E < sInf E ↔ E = ∅ := by sorry
+theorem Ereal.sinf_empty : sInf (∅ : Set EReal) = ⊤ := by
+  apply sInf_eq_of_forall_ge_of_forall_gt_exists_lt
+  . simp
+  . simp [le_iff]
 
 /-- Theorem 6.2.11 (a) / Exercise 6.2.2 -/
-theorem EReal.mem_le_sup (E: Set EReal) {x:EReal} (hx: x ∈ E) : x ≤ sSup E := by sorry
+theorem EReal.mem_le_sup (E: Set EReal) {x:EReal} (hx: x ∈ E) : x ≤ sSup E := by
+  rw [le_sSup_iff]
+  intro b hb
+  simp [upperBounds] at hb
+  exact hb hx
 
 /-- Theorem 6.2.11 (a) / Exercise 6.2.2 -/
-theorem EReal.mem_ge_inf (E: Set EReal) {x:EReal} (hx: x ∈ E) : sInf E ≤ x := by sorry
+theorem EReal.mem_ge_inf (E: Set EReal) {x:EReal} (hx: x ∈ E) : sInf E ≤ x := by
+  rw [sInf_le_iff]
+  intro b hb
+  simp [lowerBounds] at hb
+  exact hb hx
+
+example (E: Set EReal) : sSup E < sInf E ↔ E = ∅ := by
+  constructor
+  . intro h
+    contrapose! h
+    obtain ⟨ x, hx ⟩ := h
+    have h1 : sInf E ≤ x
+    . exact EReal.mem_ge_inf E hx
+    have h2 : x ≤ sSup E
+    . exact EReal.mem_le_sup E hx
+    exact EReal.trans h1 h2
+  . intro rfl
+    rw [Ereal.sinf_empty, EReal.sup_of_empty]
+    tauto
 
 /-- Theorem 6.2.11 (b) / Exercise 6.2.2 -/
-theorem EReal.sup_le_upper (E: Set EReal) {M:EReal} (hM: M ∈ upperBounds E) : sSup E ≤ M := by sorry
+theorem EReal.sup_le_upper (E: Set EReal) {M:EReal} (hM: M ∈ upperBounds E) : sSup E ≤ M := by
+  rw [sSup_le_iff]
+  exact hM
 
 /-- Theorem 6.2.11 (c) / Exercise 6.2.2 -/
-theorem EReal.inf_ge_upper (E: Set EReal) {M:EReal} (hM: M ∈ lowerBounds E) : sInf E ≥ M := by sorry
+theorem EReal.inf_ge_upper (E: Set EReal) {M:EReal} (hM: M ∈ lowerBounds E) : sInf E ≥ M := by
+  rw [ge_iff_le, le_sInf_iff]
+  exact hM
 
 #check isLUB_iff_sSup_eq
 #check isGLB_iff_sInf_eq
@@ -297,14 +389,49 @@ noncomputable abbrev Chapter5.ExtendedReal.toEReal (x:ExtendedReal) : EReal := m
   | infty => ⊤
   | neg_infty => ⊥
 
-theorem Chapter5.ExtendedReal.coe_inj : Function.Injective toEReal := by sorry
+theorem Chapter5.ExtendedReal.coe_inj : Function.Injective toEReal := by
+  intro a b h
+  match a with
+  | neg_infty =>
+    match b with
+    | neg_infty => rfl
+    | real x =>
+      simp at h
+    | infty =>
+      simp [toEReal] at h
+      contradiction
+  | real x =>
+    match b with
+    | neg_infty =>
+      simp at h
+    | real y =>
+      simp at h
+      suffices h : x = y
+      . rw [h]
+      replace h := _root_.Real.equivCut.symm.injective h
+      exact Real.equivCut.injective h
+    | infty =>
+      simp at h
+  | infty =>
+    match b with
+    | neg_infty =>
+      simp [toEReal] at h
+      contradiction
+    | real x =>
+      simp at h
+    | infty =>
+      rfl
 
-theorem Chapter5.ExtendedReal.coe_surj : Function.Surjective toEReal := by sorry
+theorem Chapter5.ExtendedReal.coe_surj : Function.Surjective toEReal := by
+  intro y
+  obtain ⟨ y, rfl ⟩ | rfl | rfl := EReal.def y
+  . obtain ⟨ x, hx ⟩ := Real.equivR.surjective y
+    use x
+    simp [hx]
+  . use infty
+  . use neg_infty
 
-noncomputable abbrev Chapter5.ExtendedReal.equivEReal : Chapter5.ExtendedReal ≃ EReal where
-  toFun := toEReal
-  invFun := sorry
-  left_inv x := by
-    sorry
-  right_inv x := by
-    sorry
+noncomputable abbrev Chapter5.ExtendedReal.equivEReal : Chapter5.ExtendedReal ≃ EReal :=
+  Equiv.ofBijective toEReal (by {
+    use Chapter5.ExtendedReal.coe_inj, Chapter5.ExtendedReal.coe_surj
+  })
