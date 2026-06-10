@@ -34,18 +34,43 @@ abbrev Sequence.LimitPoint (a:Sequence) (x:ℝ) : Prop :=
 theorem Sequence.limit_point_def (a:Sequence) (x:ℝ) :
   a.LimitPoint x ↔ ∀ ε > 0, ∀ N ≥ a.m, ∃ n ≥ N, |a n - x| ≤ ε := by
     unfold LimitPoint Real.ContinuallyAdherent Real.Adherent
-    sorry
+    unfold Real.Close
+    simp_rw [Real.dist_eq]
+    constructor <;> intro h e he N hN <;> specialize h e he N hN <;>
+      obtain ⟨ n, hn, h ⟩ := h <;> use n
+    . simp [hn] at h
+      simp at hn
+      use hn.2
+    . have hn2 : n ≥ max a.m N := by omega
+      simp [hn2, h]
 
 noncomputable abbrev Example_6_4_3 : Sequence := (fun (n:ℕ) ↦ 1 - (10:ℝ)^(-(n:ℤ)-1))
 
 /-- Example 6.4.3 -/
-example : (0.1:ℝ).Adherent Example_6_4_3 0.8 := by sorry
+example : (0.1:ℝ).Adherent Example_6_4_3 0.8 := by
+  use 0
+  simp [Real.dist_eq]
+  norm_num
 
 /-- Example 6.4.3 -/
-example : ¬ (0.1:ℝ).ContinuallyAdherent Example_6_4_3 0.8 := by sorry
+example : ¬ (0.1:ℝ).ContinuallyAdherent Example_6_4_3 0.8 := by
+  unfold Real.ContinuallyAdherent
+  push_neg
+  use 1
+  simp
+  intro n hn
+  have hn2 : 0 ≤ n := by omega
+  simp [hn, Real.dist_eq, hn2]
+  have h10 : (10:ℝ)  ^ (-n - 1) < 0.1 := by sorry
+  rw [abs_of_nonneg (by linarith)]
+  linarith
 
 /-- Example 6.4.3 -/
-example : (0.1:ℝ).ContinuallyAdherent Example_6_4_3 1 := by sorry
+example : (0.1:ℝ).ContinuallyAdherent Example_6_4_3 1 := by
+  intro n hn
+  use n
+  simp [hn]
+  sorry
 
 /-- Example 6.4.3 -/
 example : Example_6_4_3.LimitPoint 1 := by sorry
@@ -70,7 +95,50 @@ example : ¬ Example_6_4_4.LimitPoint 0 := by sorry
 
 /-- Proposition 6.4.5 / Exercise 6.4.1 -/
 theorem Sequence.limit_point_of_limit {a:Sequence} {x:ℝ} (h: a.TendsTo x) : a.LimitPoint x := by
-  sorry
+  intro e he N hN
+  unfold Real.Adherent
+  specialize h e he
+  obtain ⟨ N', hN', h ⟩ := h
+  rw [Real.closeSeq_def] at h
+  use max N N'
+  constructor
+  . simp [hN]
+  rw [Real.Close, Real.dist_eq]
+  simp [hN]
+  specialize h (max N N') (by simp [hN'])
+  simp [Real.dist_eq, hN'] at h
+  exact h
+
+theorem Sequence.limit_point_of_limit_unique {a:Sequence} {x y:ℝ} (h: a.TendsTo x) (hy: a.LimitPoint y) : x = y := by
+  have hx := limit_point_of_limit h
+  have ha : a.IsCauchy
+  . rw [Sequence.lim_eq] at h
+    exact Sequence.IsCauchy.convergent h.1
+  contrapose! ha; clear h
+  wlog h : x < y
+  . simp at h
+    exact this hx hy (by symm; exact ha) (by contrapose! ha; linarith)
+  clear ha
+  rw [lt_iff_exists_pos_add] at h
+  obtain ⟨ c, hc, rfl ⟩ := h
+  rw [Sequence.isCauchy_def]
+  push_neg
+  use (c/4), (by linarith)
+  intro N hN
+  rw [Real.steady_def]
+  push_neg
+  specialize hx (c/4) (by linarith) N hN
+  specialize hy (c/4) (by linarith) N hN
+  obtain ⟨ n, hn, hx ⟩ := hx
+  obtain ⟨ m, hm, hy ⟩ := hy
+  use n, hn, m, hm
+  rw [Real.Close, Real.dist_eq] at *
+  set b := (a.from N).seq n
+  set d := (a.from N).seq m
+  by_contra h
+  simp at h
+  rw [abs_le] at *
+  linarith
 
 /--
   A technical issue uncovered by the formalization: the upper and lower sequences of a real
@@ -108,9 +176,61 @@ example : Example_6_4_7.inf = (-1.01:ℝ) := by sorry
 
 noncomputable abbrev Example_6_4_8 : Sequence := (fun (n:ℕ) ↦ if Even n then (n+1:ℝ) else -(n:ℝ)-1)
 
-example (n:ℕ) : Example_6_4_8.upperseq n = ⊤ := by sorry
+theorem Example_6_4_8_upperseq (n:ℕ) : Example_6_4_8.upperseq n = ⊤ := by
+  simp [Sequence.upperseq, Sequence.sup]
+  apply sSup_eq_of_forall_le_of_forall_lt_exists_gt
+  . intro a _
+    simp [le_iff]
+  . intro b hb'
+    obtain hb | rfl | rfl := EReal.def b
+    . obtain ⟨ b, rfl ⟩ := hb; clear hb'
+      obtain ⟨ m, hm ⟩ := exists_nat_gt b
+      set n' := max n m
+      use ((if Even n' then n'+1 else n'+2):ℝ)
+      simp
+      constructor
+      . use (if Even n' then n' else n'+1)
+        have hn : ((n:ℤ) ≤ if Even n' then ↑n' else n' + (1:ℤ))
+        . suffices h : n ≤ n'
+          . omega
+          simp [n']
+        have h0 : ((0:ℤ) ≤ if Even n' then ↑n' else n' + (1:ℤ))
+        . have h : 0 ≤ n' := by simp
+          by_cases hn' : Even n' <;> simp [hn']
+          . linarith
+        simp [hn, h0]
+        by_cases h : Even n' <;> simp [h]
+        . have h2 : Even (n' + 1)
+          . simp at h
+            exact Odd.add_one h
+          simp [h2]
+          ring
+      . suffices h : b < n'
+        . by_cases hn' : Even n' <;> simp [hn'] <;> linarith
+        simp [n', hm]
+    . simp at hb'
+    . use ((if Even n then (n:ℝ) + (1:ℝ) else -n - 1):ℝ)
+      constructor
+      . simp
+        use n
+        simp
+      simp
 
-example : Example_6_4_8.limsup = ⊤ := by sorry
+example : Example_6_4_8.limsup = ⊤ := by
+  simp [Sequence.limsup]
+  apply sInf_eq_of_forall_ge_of_forall_gt_exists_lt
+  . intro a ha
+    simp at ha
+    obtain ⟨ N, hN, rfl ⟩ := ha
+    lift N to ℕ using hN
+    simp [Example_6_4_8_upperseq]
+  . intro b hb
+    use ⊤
+    simp [hb]
+    use 0, (by norm_num)
+    have h0 : (0:ℤ) = (0:ℕ) := by ring
+    rw [h0]
+    simp only [Example_6_4_8_upperseq]
 
 example (n:ℕ) : Example_6_4_8.lowerseq n = ⊥ := by sorry
 
