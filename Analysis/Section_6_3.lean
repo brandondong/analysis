@@ -620,6 +620,10 @@ theorem lim_of_exp {x:ℝ} (hpos: 0 < x) (hbound: x < 1) :
   simp_all [-one_mul]
 
 /-- Exercise 6.3.4 -/
-theorem lim_of_exp' {x:ℝ} (hbound: x > 1) : ¬((fun (n:ℕ) ↦ x^n):Sequence).Convergent := by sorry
+theorem lim_of_exp' {x:ℝ} (hbound: x > 1) : ¬((fun (n:ℕ) ↦ x^n):Sequence).Convergent := by
+  intro h
+  replace h := Sequence.bounded_of_cauchy (Sequence.IsCauchy.convergent h)
+  contrapose! h; clear h
+  sorry
 
 end Chapter6
