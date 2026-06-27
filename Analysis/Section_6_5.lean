@@ -18,7 +18,13 @@ Main constructions and results of this section:
 
 namespace Chapter6
 
-theorem Sequence.lim_of_const (c:ℝ) :  ((fun (_:ℕ) ↦ c):Sequence).TendsTo c := by sorry
+theorem Sequence.lim_of_const (c:ℝ) :  ((fun (_:ℕ) ↦ c):Sequence).TendsTo c := by
+  rw [Sequence.tendsTo_iff]
+  intro e he
+  use 0
+  intro n hn
+  simp [hn]
+  linarith
 
 instance Sequence.inst_pow: Pow Sequence ℕ where
   pow a k := {
@@ -76,7 +82,12 @@ theorem Sequence.lim_of_geometric {x:ℝ} (hx: |x| < 1) : ((fun (n:ℕ) ↦ x^n)
 
 /-- Lemma 6.5.2 / Exercise 6.5.2 -/
 theorem Sequence.lim_of_geometric' {x:ℝ} (hx: x = 1) : ((fun (n:ℕ) ↦ x^n):Sequence).TendsTo 1 := by
-  sorry
+  rw [Sequence.tendsTo_iff]
+  intro e he
+  use 0
+  intro n hn
+  simp [hn, hx]
+  linarith
 
 /-- Lemma 6.5.2 / Exercise 6.5.2 -/
 theorem Sequence.lim_of_geometric'' {x:ℝ} (hx: x = -1 ∨ |x| > 1) :
