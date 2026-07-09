@@ -56,42 +56,136 @@ theorem sum_of_nonempty {n m:ℤ} (h: n ≥ m-1) (a: ℤ → ℝ) :
   . infer_instance
   simp
 
-example (a: ℤ → ℝ) (m:ℤ) : ∑ i ∈ Icc m (m-2), a i = 0 := by sorry
+example (a: ℤ → ℝ) (m:ℤ) : ∑ i ∈ Icc m (m-2), a i = 0 := by
+  apply sum_eq_zero
+  intro x hx
+  simp at hx
 
-example (a: ℤ → ℝ) (m:ℤ) : ∑ i ∈ Icc m (m-1), a i = 0 := by sorry
+theorem sum_of_m_m_sub_one (a: ℤ → ℝ) (m:ℤ) : ∑ i ∈ Icc m (m-1), a i = 0 := by
+  apply sum_eq_zero
+  intro x hx
+  simp at hx
 
-example (a: ℤ → ℝ) (m:ℤ) : ∑ i ∈ Icc m m, a i = a m := by sorry
+theorem sum_of_m_m (a: ℤ → ℝ) (m:ℤ) : ∑ i ∈ Icc m m, a i = a m := by
+  apply sum_eq_single_of_mem
+  . simp
+  intro b hb h
+  simp at hb
+  contradiction
 
-example (a: ℤ → ℝ) (m:ℤ) : ∑ i ∈ Icc m (m+1), a i = a m + a (m+1) := by sorry
+theorem sum_of_m_m_add_one (a: ℤ → ℝ) (m:ℤ) : ∑ i ∈ Icc m (m+1), a i = a m + a (m+1) := by
+  rw [sum_of_nonempty (by omega), sum_of_m_m]
 
-example (a: ℤ → ℝ) (m:ℤ) : ∑ i ∈ Icc m (m+2), a i = a m + a (m+1) + a (m+2) := by sorry
+example (a: ℤ → ℝ) (m:ℤ) : ∑ i ∈ Icc m (m+2), a i = a m + a (m+1) + a (m+2) := by
+  have hm : m+2 = (m+1)+1 := by ring
+  rw [hm, sum_of_nonempty (by omega), sum_of_m_m_add_one]
 
 /-- Remark 7.1.3 -/
 example (a: ℤ → ℝ) (m n:ℤ) : ∑ i ∈ Icc m n, a i = ∑ j ∈ Icc m n, a j := rfl
 
 /-- Lemma 7.1.4(a) / Exercise 7.1.1 -/
 theorem concat_finite_series {m n p:ℤ} (hmn: m ≤ n+1) (hpn : n ≤ p) (a: ℤ → ℝ) :
-  ∑ i ∈ Icc m n, a i + ∑ i ∈ Icc (n+1) p, a i = ∑ i ∈ Icc m p, a i := by sorry
+  ∑ i ∈ Icc m n, a i + ∑ i ∈ Icc (n+1) p, a i = ∑ i ∈ Icc m p, a i := by
+  rw [le_iff_exists_nonneg_add] at hpn
+  obtain ⟨ c, hc, rfl ⟩ := hpn
+  lift c to ℕ using hc
+  induction' c with c IH
+  . simp only [CharP.cast_eq_zero, add_zero]
+    have : (∑ i ∈ Icc (n + 1) n, a i) = 0
+    . apply sum_of_empty
+      omega
+    linarith
+  have : n + ((c + 1):ℕ) = (n + c) + 1 := by omega
+  rw [this]; clear this
+  rw [sum_of_nonempty (by omega), sum_of_nonempty (by omega)]
+  linarith
 
 /-- Lemma 7.1.4(b) / Exercise 7.1.1 -/
 theorem shift_finite_series {m n k:ℤ} (a: ℤ → ℝ) :
-  ∑ i ∈ Icc m n, a i = ∑ i ∈ Icc (m+k) (n+k), a (i-k) := by sorry
+  ∑ i ∈ Icc m n, a i = ∑ i ∈ Icc (m+k) (n+k), a (i-k) := by
+  obtain h | h := lt_or_ge n m
+  . rw [sum_of_empty h, sum_of_empty (by omega)]
+  rw [le_iff_exists_nonneg_add] at h
+  obtain ⟨ c, hc, rfl ⟩ := h
+  lift c to ℕ using hc
+  induction' c with c IH
+  . simp
+  have : m + ((c + 1):ℕ) = (m + c) + 1 := by omega
+  rw [this]; clear this
+  rw [sum_of_nonempty (by omega), IH]; clear IH
+  have : m + c + 1 + k = m + c + k + 1 := by ring
+  rw [this, sum_of_nonempty (by omega)]; clear this
+  have : m + ↑c + k + 1 - k = m + ↑c + 1 := by ring
+  rw [this]
 
 /-- Lemma 7.1.4(c) / Exercise 7.1.1 -/
 theorem finite_series_add {m n:ℤ} (a b: ℤ → ℝ) :
-  ∑ i ∈ Icc m n, (a i + b i) = ∑ i ∈ Icc m n, a i + ∑ i ∈ Icc m n, b i := by sorry
+  ∑ i ∈ Icc m n, (a i + b i) = ∑ i ∈ Icc m n, a i + ∑ i ∈ Icc m n, b i := by
+  obtain h | h := lt_or_ge n m
+  . simp only [sum_of_empty h]
+    norm_num
+  rw [le_iff_exists_nonneg_add] at h
+  obtain ⟨ c, hc, rfl ⟩ := h
+  lift c to ℕ using hc
+  induction' c with c IH
+  . simp
+  have : m + ((c + 1):ℕ) = (m + c) + 1 := by omega
+  rw [this]; clear this
+  rw [sum_of_nonempty (by omega), IH]; clear IH
+  rw [sum_of_nonempty (by omega), sum_of_nonempty (by omega)]
+  linarith
 
 /-- Lemma 7.1.4(d) / Exercise 7.1.1 -/
 theorem finite_series_const_mul {m n:ℤ} (a: ℤ → ℝ) (c:ℝ) :
-  ∑ i ∈ Icc m n, c * a i = c * ∑ i ∈ Icc m n, a i := by sorry
+  ∑ i ∈ Icc m n, c * a i = c * ∑ i ∈ Icc m n, a i := by
+  obtain h | h := lt_or_ge n m
+  . simp only [sum_of_empty h]
+    ring
+  rw [le_iff_exists_nonneg_add] at h
+  obtain ⟨ d, hd, rfl ⟩ := h
+  lift d to ℕ using hd
+  induction' d with d IH
+  . simp
+  have : m + ((d + 1):ℕ) = (m + d) + 1 := by omega
+  rw [this, sum_of_nonempty (by omega), sum_of_nonempty (by omega), IH]
+  linarith
 
 /-- Lemma 7.1.4(e) / Exercise 7.1.1 -/
 theorem abs_finite_series_le {m n:ℤ} (a: ℤ → ℝ) :
-  |∑ i ∈ Icc m n, a i| ≤ ∑ i ∈ Icc m n, |a i| := by sorry
+  |∑ i ∈ Icc m n, a i| ≤ ∑ i ∈ Icc m n, |a i| := by
+  obtain h | h := lt_or_ge n m
+  . simp only [sum_of_empty h]
+    norm_num
+  rw [le_iff_exists_nonneg_add] at h
+  obtain ⟨ d, hd, rfl ⟩ := h
+  lift d to ℕ using hd
+  induction' d with d IH
+  . simp
+  have : m + ((d + 1):ℕ) = (m + d) + 1 := by omega
+  rw [this, sum_of_nonempty (by omega), sum_of_nonempty (by omega)]; clear this
+  have := abs_add_le (∑ i ∈ Icc m (m + ↑d), a i) (a (m + ↑d + 1))
+  linarith
 
 /-- Lemma 7.1.4(f) / Exercise 7.1.1 -/
 theorem finite_series_of_le {m n:ℤ}  {a b: ℤ → ℝ} (h: ∀ i, m ≤ i → i ≤ n → a i ≤ b i) :
-  ∑ i ∈ Icc m n, a i ≤ ∑ i ∈ Icc m n, b i := by sorry
+  ∑ i ∈ Icc m n, a i ≤ ∑ i ∈ Icc m n, b i := by
+  obtain h | hnm := lt_or_ge n m
+  . simp only [sum_of_empty h]
+    norm_num
+  rw [le_iff_exists_nonneg_add] at hnm
+  obtain ⟨ d, hd, rfl ⟩ := hnm
+  lift d to ℕ using hd
+  induction' d with d IH
+  . simp
+    apply h <;> omega
+  specialize IH (by {
+    intro i hi1 hi2
+    exact h i hi1 (by omega)
+  })
+  have : m + ((d + 1):ℕ) = (m + d) + 1 := by omega
+  rw [this, sum_of_nonempty (by omega), sum_of_nonempty (by omega)]
+  specialize h (m+d+1) (by omega) (by omega)
+  linarith
 
 #check sum_congr
 
@@ -190,11 +284,45 @@ theorem finite_series_eq {n:ℕ} {Y:Type*} (X: Finset Y) (f: Y → ℝ) (g: Icc 
   intros; simp_all
 
 /-- Proposition 7.1.11(a) / Exercise 7.1.2 -/
-theorem finite_series_of_empty {X':Type*} (f: X' → ℝ) : ∑ i ∈ ∅, f i = 0 := by sorry
+theorem finite_series_of_empty {X':Type*} (f: X' → ℝ) : ∑ i ∈ ∅, f i = 0 := by
+  have h := finite_series_eq (n := 0) (Y := X') (∅) f (fun x ↦ nomatch x) (by {
+    constructor
+    . intro x1 x2 h
+      nomatch x1
+    . intro y
+      nomatch y
+  })
+  rw [h]
+  apply sum_of_empty
+  norm_num
 
 /-- Proposition 7.1.11(b) / Exercise 7.1.2 -/
 theorem finite_series_of_singleton {X':Type*} (f: X' → ℝ) (x₀:X') : ∑ i ∈ {x₀}, f i = f x₀ := by
-  sorry
+  have h1 : (1:ℕ)  = (1:ℤ) := by norm_num
+  have h := finite_series_eq (n := 1) (Y := X') {x₀} f (fun x ↦ ⟨ x₀, by simp ⟩) (by {
+    constructor
+    . intro n1 n2 _
+      have hn1 := n1.2
+      have hn2 := n2.2
+      ext
+      set d1 := n1.1
+      set d2 := n2.1
+      simp at hn1 hn2
+      rw [hn1, hn2]
+    . intro y
+      use ⟨ 1, by simp ⟩
+      simp
+      ext
+      simp
+      have := y.2
+      symm
+      set d := y.val
+      simp at this
+      exact this
+  })
+  rw [h]
+  rw [h1, sum_of_m_m]
+  simp
 
 /--
   A technical lemma relating a sum over a finset with a sum over a fintype. Combines well with
