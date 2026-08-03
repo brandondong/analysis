@@ -558,6 +558,16 @@ theorem abs_finite_series_le' {X':Type*} (f: X' → ℝ) (X: Finset X') :
   . simp [hi]
   simp [hi2]
 
+theorem eq_finite_series' {X':Type*} (f g: X' → ℝ) (X: Finset X') (h: ∀ x ∈ X, (f x = g x)) :
+  ∑ x ∈ X, f x = ∑ x ∈ X, g x := by
+  obtain ⟨ fx, hfx ⟩ := exist_bijection (n := X.card) (Y := X') (X) (by rfl)
+  have h1 := finite_series_eq (n := X.card) (Y := X') (X) f fx hfx
+  have h2 := finite_series_eq (n := X.card) (Y := X') (X) g fx hfx
+  rw [h1, h2]; clear h1 h2
+  apply eq_finite_series
+  intro i hi
+  simp [hi, h]
+
 /-- Lemma 7.1.13 --/
 theorem finite_series_of_finite_series {XX YY:Type*} (X: Finset XX) (Y: Finset YY)
   (f: XX × YY → ℝ) :
@@ -657,6 +667,89 @@ theorem lim_of_finite_series {X:Type*} [Fintype X] (a: X → ℕ → ℝ) (L : X
     Filter.atTop.Tendsto (fun n ↦ ∑ x, a x n) (nhds (∑ x, L x)) := by
   sorry
 
+noncomputable abbrev combine_last {n : ℕ} {S : Type*} [Fintype S] (E: Fin (n + 1 + 1) → Finset S) : Fin (n + 1) → Finset S :=
+  fun i ↦ if i < Fin.last _ then (E (Fin.castSucc i)) else (E (Fin.castSucc i) ∪ E (Fin.succ i))
+
+abbrev map_range_to_fin (n: ℕ) : ↥(Icc 1 (n:ℤ)) → ↥(univ: Finset (Fin n)) :=
+  fun ⟨ i, hi ⟩ ↦
+    let f : Fin (n) := ⟨ (i-1).toNat, by {
+      simp at hi
+      omega
+    } ⟩;
+    ⟨ f, (by simp) ⟩
+
+theorem map_range_to_fin_bijective {n: ℕ} : Function.Bijective (map_range_to_fin n) := by
+  constructor
+  . intro ⟨ i1, hi1 ⟩ ⟨ i2, hi2 ⟩ h
+    simp [map_range_to_fin] at h
+    simp at hi1 hi2
+    simp
+    omega
+  . intro ⟨ i, _ ⟩
+    use ⟨ i+1, (by {
+      simp
+    }) ⟩
+    simp [map_range_to_fin]
+
+theorem combine_last_cover {n : ℕ} {S : Type*} [Fintype S] (E: Fin (n + 1 + 1) → Finset S) (cover : ∀ (s : S), ∃ i, s ∈ E i) : ∀ (s : S), ∃ i, s ∈ combine_last E i := by
+  intro s
+  specialize cover s
+  obtain ⟨ ⟨ i, hi ⟩, h ⟩ := cover
+  simp [combine_last, Fin.last]
+  by_cases hi2 : i < n
+  . use ⟨ i, (by omega) ⟩
+    simp [hi2, h]
+  . by_cases h3 : i < n+1
+    . use ⟨ i, (by omega) ⟩
+      simp [hi2, h]
+    . use ⟨ i-1, (by omega) ⟩
+      have hi3 : ¬ i - 1 < n := by omega
+      simp [hi3]
+      right
+      have hi4 : i-1+1 = i := by omega
+      simp [hi4, h]
+
+theorem combine_last_disjoint {n : ℕ} {S : Type*} [Fintype S] (E: Fin (n + 1 + 1) → Finset S) (disj : ∀ (i j : Fin (n + 1 + 1)), i ≠ j → Disjoint (E i) (E j)) : ∀ (i j : Fin (n + 1)), i ≠ j → Disjoint (combine_last E i) (combine_last E j) := by
+  intro ⟨ i, hi ⟩ ⟨ j, hj ⟩ hij
+  simp at hij
+  simp [combine_last, Fin.last]
+  by_cases h : i < n ∧ j < n
+  . simp [h]
+    apply disj
+    simp [hij]
+  wlog hi2: ¬ i < n generalizing i j
+  . specialize this j hj i hi (by tauto) (by tauto) (by {
+      omega
+    })
+    exact Disjoint.symm this
+  replace hj : j < n := by omega
+  simp [hj, hi2]
+  constructor <;> apply disj <;> simp
+  . exact hij
+  . omega
+
+theorem combine_last_eq {n : ℕ} {S : Type*} [Fintype S] (E: Fin (n + 1 + 1) → Finset S) (f : S → ℝ) (disj : ∀ (i j : Fin (n + 1 + 1)), i ≠ j → Disjoint (E i) (E j)) : ∑ i, ∑ s ∈ combine_last E i, f s = ∑ i, ∑ s ∈ E i, f s := by
+  rw [finite_series_eq (univ: Finset (Fin (n+1))) _ (map_range_to_fin (n+1)) map_range_to_fin_bijective]
+  rw [finite_series_eq (univ: Finset (Fin (n+1+1))) _ (map_range_to_fin (n+1+1)) map_range_to_fin_bijective]
+  simp
+  rw [sum_of_nonempty (by omega), sum_of_nonempty (by omega), sum_of_nonempty (by omega)]
+  have hn : (1:ℤ) ≤ ↑n + 1 ∧ ↑n + 1 ≤ ↑n + 1 := by omega
+  have hn2 : (0:ℤ) ≤ n + 1 := by omega
+  have hn3 : ((n:ℤ) + 1 + 1).toNat - 1 = n+1 := by omega
+  simp [hn, hn2, hn3]
+  have (a b c d e: ℝ) (h: a = b) (h2: c = d+e) : a + c = b + d + e := by linarith
+  apply this <;> clear this
+  . apply eq_finite_series
+    intro i hi
+    have hi2 : i ≤ ↑n + 1 := by omega
+    have hi3 : i ≤ ↑n + 1 + 1 := by omega
+    have hi4 : i.toNat - 1 < n := by omega
+    simp [hi, hi2, hi3, combine_last, Fin.last, hi4]
+  . simp [combine_last, Fin.last]
+    apply finite_series_of_disjoint_union
+    apply disj
+    simp
+
 /-- Exercise 7.1.6 -/
 theorem sum_union_disjoint {n : ℕ} {S : Type*} [Fintype S]
     (E : Fin n → Finset S)
@@ -664,12 +757,109 @@ theorem sum_union_disjoint {n : ℕ} {S : Type*} [Fintype S]
     (cover : ∀ s : S, ∃ i, s ∈ E i)
     (f : S → ℝ) :
     ∑ s, f s = ∑ i, ∑ s ∈ E i, f s := by
+  match n with
+  | 0 => {
+    -- In 0 case, S must be empty to meet cover requirement.
+    have hS : (univ : Finset S) = ∅
+    . contrapose! cover
+      obtain ⟨ s, _ ⟩ := cover
+      use s
+      intro i
+      nomatch i
+    simp [hS]
+  }
+  | n+1 =>
+  -- Induct on remaining n.
+  induction' n with n IH
+  . -- 1 case is trivial.
+    simp
+    have hE : E 0 = (univ : Finset S)
+    . ext s
+      constructor <;> intro h
+      . simp
+      . specialize cover s
+        obtain ⟨ i, hi ⟩ := cover
+        have hi2 : i = 0
+        . obtain ⟨ x, hx ⟩ := i
+          simp
+          omega
+        rwa [hi2] at hi
+    rw [hE]
+  -- To prove for n+1 -> S, you can create a E': n -> S by combining the last two values.
+  -- These two sums are obviously equivalent because we can manually expand the last two terms.
+  specialize IH (combine_last E) (by apply combine_last_disjoint; exact disj) (by apply combine_last_cover; exact cover)
+  rw [IH]
+  apply combine_last_eq
+  exact disj
+
+theorem sum_lt_fin {m : ℕ} (c : Fin m) : ↑↑c = ∑ x, if x < c then (1:ℝ) else 0 := by
+  obtain ⟨ c, hc ⟩ := c
+  induction' c with c IH
+  . simp only [CharP.cast_eq_zero]
+    symm
+    apply sum_eq_zero
+    intro ⟨ x, hx ⟩ _
+    simp
+  specialize IH (by omega)
+  simp only [Nat.cast_add, Nat.cast_one] at IH ⊢
+  rw [IH]; clear IH
+  -- Split the sums. Everything outside of x = c is the same.
   sorry
 
 /-- {given}`aᵢ` Exercise 7.1.7. Uses {lean}`Fin m` (so {lean}`aᵢ < m`) instead of the book's {lean}`aᵢ ≤ m`;
   the bound is baked into the type, and {kw (of := «term_<_»)}`<` replaces {kw (of := «term_≤_»)}`≤` to match the 0-indexed shift. -/
 theorem sum_finite_col_row_counts {n m : ℕ} (a : Fin n → Fin m) :
     ∑ i, (a i : ℕ) = ∑ j : Fin m, {i : Fin n | j < a i}.toFinset.card := by
-  sorry
+  suffices h : ∑ i, ((a i : ℕ):ℝ) = ∑ j : Fin m, (({i : Fin n | j < a i}.toFinset.card):ℝ)
+  . norm_cast at h
+  -- Induct on n.
+  induction' n with n IH
+  . simp
+  -- Need to prove for sum of ai up to n+1 which is sum of ai to n + a n.
+  -- By IH, we can distribute that a n over each j term where j < a n.
+  specialize IH (fun i ↦ a (Fin.castSucc i))
+  rw [finite_series_eq (univ: Finset (Fin (n+1))) _ (map_range_to_fin (n+1)) map_range_to_fin_bijective]
+  rw [finite_series_eq (univ: Finset (Fin (n))) _ (map_range_to_fin (n)) map_range_to_fin_bijective] at IH
+  simp only [Nat.cast_add, Nat.cast_one]
+  rw [sum_of_nonempty (by omega)]
+  have {a b c d e: ℝ} (h: a = b) (h2 : a = c) (h3 : b+d = e) : c+d = e := by linarith
+  apply this IH
+  . apply eq_finite_series
+    intro i hi
+    simp [hi]
+    omega
+  have hn : n + (1:ℤ) ∈ Icc 1 ((n + 1):ℤ)
+  . simp
+  simp [hn]; clear this IH
+  have heq {a b c d: ℝ} (h: a = c) (h2 : b = d) : a+b = c+d := by linarith
+  -- Express the RHS as a sum with a conditional term, then split into its own sum.
+  have h1 : ∑ x, ((#{x_1 | x < a x_1}):ℝ) = ∑ x, ((fun x ↦ ((#{x_1 | x < (fun i ↦ a (Fin.castSucc i)) x_1}):ℝ)) + (fun x ↦ (if (x < a (Fin.last _)) then (1:ℝ) else 0))) x
+  . simp
+    apply eq_finite_series'
+    intro i _
+    norm_cast
+    rw [card_filter, card_filter]
+    suffices h : (∑ i_1, if i < a i_1 then (1:ℝ) else 0) = (∑ i_1, if i < a (Fin.castSucc i_1) then 1 else 0) + if i < a (Fin.last n) then 1 else 0
+    . norm_cast at h
+    rw [finite_series_eq (univ: Finset (Fin (n+1))) _ (map_range_to_fin (n+1)) map_range_to_fin_bijective]
+    rw [finite_series_eq (univ: Finset (Fin (n))) _ (map_range_to_fin (n)) map_range_to_fin_bijective]
+    simp only [Nat.cast_add, Nat.cast_one]
+    rw [sum_of_nonempty (by omega)]
+    apply heq
+    . apply eq_finite_series
+      intro x hx
+      have hx2 : x ≤ ↑n + 1 := by omega
+      simp [hx, hx2]
+    . simp [Fin.last]
+  rw [h1, finite_series_of_add]; clear h1
+  apply heq
+  . apply eq_finite_series'
+    intro i _
+    simp
+  . have heq2 (a: ℝ) {b c: ℝ} (h: a = b) (h2 : a = c) : b = c := by linarith
+    apply heq2 (a (Fin.last n))
+    . simp [Fin.last]
+    set c := (a (Fin.last n))
+    apply sum_lt_fin
 
 end Finset
